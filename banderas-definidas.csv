@@ -1,0 +1,22 @@
+Criterio,Bandera,"Campos / Fórmula","Tipo de resultado",Nivel,"Información adicional",comentarios
+Transparencia,"OCDS válido","-aplicar validador oficial OCDS_ si sale un error da 0, si no hay errores da 1",bool,fuerte,errores,
+Transparencia,"Campos completos","De todos los campos del standard cuales están llenos en todas sus apariciones","De 0 a 1",fuerte,"campos vacios",duda
+Transparencia,"Secciones completas","Si el length de cada seccion es mayor a 0, da 1, sino 0",bool,fuerte,"campos vacios",duda
+Temporalidad,"Campos fundamentales para la temporalidad","Award.date Tender.period.endDate Tender.period.startDate Contract.date Contract.period.startDate ",bool,fuerte,"campos vacios",
+Temporalidad,"Tiempo insuficiente de preparación de oferta","Lapsos configurables por país. min_period = 20 If (Tender.procurementMethodCaracterMxCnet == “Nacional” or undefined) min_period = 15; Tender.period.endDate – Tender.period.startDate > min_period",bool,fuerte,"dias excedentes",
+Temporalidad,"Fechas sospechosas","Award.date Tender.period.endDate Tender.period.startDate Contract.date Contract.period.startDate in [feriados_bancarios] 1 de enero. 5 de febrero tercer lunes de marzo en conmemoración del 21 de marzo, es decir, el 19 de marzo. 29 y 30 de marzo – semana santa 1 de mayo. 1 de julio, con motivo de las elecciones federales. Cada seis años. 16 de septiembre. 2 de noviembre. Adicionalmente, el tercer lunes de dicho mes en conmemoración del 20 de noviembre, es decir, el 19 de noviembre. 1, 12 y 25 de diciembre. O día domingo.",,fuerte,"tipo de fecha especial",
+Temporalidad,"Períodos sospechosos",,bool,fuerte,,
+Temporalidad,"Ejecución extrema (gauss)","La diferencia entre Contract.period.startDate y contract.period.endDate es mayor a 1000 días",bool,fuerte,,duda
+Competitividad,"Importes extremos (gauss)","Contract.amount.value (normalizado a pesos) está dentro del rango inferior o mayor",bool,debil,,duda
+Competitividad,"campos fundamentales para la competitividad","parties.name para supplier no tiene valor o tiene ""---"", tender.procurementMethod"," ",fuerte,"campos vacios",
+Competitividad,"Paraísos fiscales","party.address.countryName figura en el listado de financial secrecy index con valor mayor a 60",bool,debil,,"falta definir el numero"
+Trazabilidad,"Escala inconsistente","parties.details.scaleReportedByBuyerMxCnet != 'parties.details.scaleReportedBySupplierMxCnet",bool,fuerte,,
+Trazabilidad,"campos fundamentales para la trazabilidad"," planning.budget tiene algo, un party supplier y un party buyer, los names no son ""---""",bool,fuerte,,
+Trazabilidad,"Modificaciones al contrato","contracts.amendments tiene algo",bool,fuerte,,
+Trazabilidad,"Información de las partes","parties.contactPoint.name && parties.contactPoint.email/telephone/faxNumber/url",bool,fuerte,,
+Trazabilidad,"Proveedor fantasma","Si tenés party pero Party.identifier.id del supplier vacío",bool,fuerte,,
+Trazabilidad,"Importe redondeado","Contract.amount.value tiene 5 ceros",bool,fuerte,,
+Trazabilidad,"Comprensión del título",http://gitlab.rindecuentas.org/ivan/luigi_pipelines/blob/master/RedFlagsDocumentations.py#L263,bool,fuerte,,
+Trazabilidad,"Falta de referencia oficial","source tiene una URL",bool,fuerte,,
+,,,,,,
+Confiabilidad,,,,,,
