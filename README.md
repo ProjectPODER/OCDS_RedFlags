@@ -1,6 +1,10 @@
 # ocds-redflags
 Evaluador de documentos OCDS con banderas configurables.
 
+#### Modo de uso
+
+    node index.js -d [BASE_DE_DATOS] -c [COLECCION_OCDS] -f [FLAG_FILE]
+
 ##Configuración de banderas
 Cada regla lleva una categoría, un nombre, un tipo y parámetros del tipo.
 
