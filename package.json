@@ -1,0 +1,22 @@
+{
+  "name": "ocds-redflags",
+  "version": "1.0.0",
+  "description": "Evaluador de documentos OCDS con banderas configurables.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@gitlab.rindecuentas.org:2203/equipo-qqw/ocds-redflags.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "command-line-args": "^5.0.2",
+    "fs": "0.0.1-security",
+    "monk": "^6.0.6",
+    "slug": "^0.9.1",
+    "valid-url": "^1.0.9"
+  }
+}

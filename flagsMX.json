@@ -1,0 +1,222 @@
+[
+  {
+    "category": "Transparencia",
+    "name": "OCDS válido",
+    "type": "check-schema-bool"
+  },
+  {
+    "category": "Transparencia",
+    "name": "Campos completos",
+    "type": "check-all-fields-rate"
+  },
+  {
+    "category": "Transparencia",
+    "name": "Secciones completas",
+    "type": "check-sections-bool",
+    "fields": [
+      "parties",
+      "buyer",
+      "tender",
+      "awards",
+      "planning",
+      "contracts"
+    ]
+  },
+  {
+    "category": "Temporalidad",
+    "name": "Campos fundamentales para la temporalidad",
+    "type": "check-fields-bool",
+    "fields": [
+      "awards.date",
+      "tender.tenderPeriod.endDate",
+      "tender.tenderPeriod.startDate",
+      "date",
+      "contracts.period.startDate"
+    ]
+  },
+  {
+    "category": "Temporalidad",
+    "name": "Tiempo insuficiente de preparación de oferta",
+    "type": "date-difference-bool",
+    "difference":{
+      "minimum": [
+        {
+          "conditions": {
+            "country": "MX",
+            "Tender.procurementMethodCaracterMxCnet": {
+              "or": [
+                "Nacional",
+                "undefined"
+              ]
+            }
+          },
+          "value": 15
+        },
+        {
+          "conditions": {
+            "country": "MX",
+            "Tender.procurementMethodCaracterMxCnet": "Internacional"
+          },
+          "value": 20
+        }
+      ]
+    },
+    "fields":{
+      "from":"Tender.period.startDate",
+      "to": "Tender.period.endDate"
+      }
+  },
+  {
+    "category": "Temporalidad",
+    "name": "Fechas sospechosas",
+    "type": "check-dates-bool",
+    "fields": [
+      "award.date",
+      "tender.period.endDate",
+      "tender.period.startDate",
+      "contract.date",
+      "contract.period.startDate"
+    ],
+    "dates": [
+          "1/1",
+          "5/2",
+          "tercer lunes de marzo",
+          "19/3",
+          "29/3",
+          "30/3",
+          "semana santa",
+          "1/5",
+          "1/7 (cada 6 años)",
+          "16/9",
+          "2/10",
+          "tercer lunes de noviembre",
+          "1/12",
+          "12/12",
+          "25/12",
+          "domingo"
+    ]
+  },
+  {
+    "category": "Temporalidad",
+    "name": "Duraciones larga",
+    "type": "date-difference-bool",
+    "difference":{
+      "maximum": 1000
+    },
+    "fields":{
+      "from":"contract.period.startDate",
+      "to": "contract.period.endDate"
+    }
+  },
+  {
+    "category": "Competitividad",
+    "name": "campos fundamentales para la competitividad",
+    "type": "check-fields-bool",
+    "fields": [
+      {
+          "value":"parties.name",
+          "conditions": {
+            "parties.role": "supplier"
+          }
+      },
+      "tender.procurementMethod"
+    ]
+  },
+  {
+    "category": "Competitividad",
+    "name": "Paraísos fiscales",
+    "type": "check-field-value-bool",
+    "fields": "party.address.countryName",
+    "values": [
+      "Uruguay",
+      "/* Armar listado de paises basado en https://www.financialsecrecyindex.com/introduction/fsi-2018-results mayores a 60 */"
+    ]
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Escala inconsistente",
+    "type": "field-equality-bool",
+    "fields": [
+      "parties.details.scaleReportedByBuyerMxCnet", "parties.details.scaleReportedBySupplierMxCnet"
+    ]
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "campos fundamentales para la trazabilidad",
+    "type": "check-fields-bool",
+    "fields": [
+      "planning.budget",
+      {
+        "value": "party.name",
+        "conditions": {
+          "party.role": "supplier"
+        }
+      },
+      {
+        "value": "party.name",
+        "conditions": {
+          "party.role": "buyer"
+        }
+      }
+    ]
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Modificaciones al contrato",
+    "fields": ["contracts.amendments"],
+    "type": "check-fields-inverse"
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Información de las partes",
+    "fields": [{
+      "value":"parties.contactPoint.name",
+      "condition": {
+        "or": [
+          "parties.contactPoint.email",
+          "parties.contactPoint.telephone",
+          "parties.contactPoint.faxNumber",
+          "parties.contactPoint.url"
+        ]
+        }
+      }],
+    "type": "check-fields-bool"
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Proveedor fantasma",
+    "fields": [{
+        "value": "party.identifier.id",
+        "conditions": {
+          "party.role": "supplier"
+        }
+    }],
+    "type": "check-fields-bool"
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Importe redondeado",
+    "fields": [
+      {
+        "value":"contract.amount.value",
+        "operation": {
+        "substr":[-5]
+        }
+      }
+    ],
+    "values":["00000"],
+    "type": "check-field-value-bool"
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Comprensión del título",
+    "fields": ["contracts.title","TODO: falta otro: row23 y row26"],
+    "type": "comprensibility"
+  },
+  {
+    "category": "Trazabilidad",
+    "name": "Falta de referencia oficial",
+    "fields": "source",
+    "type": "check-url-bool"
+  }
+]
