@@ -65,7 +65,9 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
     let contratoParties = [];
     contract.parties.map( (party) => {
         let partyObj = {
-            id: party.id
+            id: party.id,
+            name: party.name,
+            entity: party.hasOwnProperty('role')? party.role : party.roles
         }
         contratoParties.push(partyObj);
     } );

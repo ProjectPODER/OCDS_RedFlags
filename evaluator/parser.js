@@ -42,4 +42,21 @@ function parseFlags(file) {
     return rulesArr;
 }
 
-module.exports = parseFlags;
+function getCriteriaObject(flags) {
+    var criteriaArr = [];
+    flags.map( (flag) => {
+        if( !criteriaArr.includes(flag.categoryID) ) {
+            criteriaArr.push(flag.categoryID);
+        }
+    } );
+
+    var criteriaObj = { total_score: 0 };
+    criteriaArr.map( (item) => {
+        criteriaObj[item] = 0;
+    } );
+    criteriaObj['total_score'] = 0;
+
+    return criteriaObj;
+}
+
+module.exports = { parseFlags, getCriteriaObject };
