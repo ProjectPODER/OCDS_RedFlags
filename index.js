@@ -3,7 +3,14 @@ const monk = require('monk');
 const commandLineArgs = require('command-line-args');
 const evaluateFlags = require('./evaluator/evaluate');
 const { parseFlags, getCriteriaObject } = require('./evaluator/parser');
-const { createFlagCollectionObject, updateFlagCollection, getCriteriaSummary, sendCollectionToDB } = require('./evaluator/collection');
+const {
+    createFlagCollectionObject,
+    updateFlagCollection,
+    getPartyCriteriaSummary,
+    getContractCriteriaSummary,
+    sendPartyCollectionToDB,
+    sendContractCollectionToDB
+} = require('./evaluator/collection');
 
 const optionDefinitions = [
     { name: 'database', alias: 'd', type: String },
@@ -44,8 +51,6 @@ const db = monk(url)
                 // contracts.find({}, { limit: 100000, sort: { 'contracts.period.startDate': -1 } })
                 contracts.find( query )
                     .each( (contract, {close, pause, resume}) => {
-                        // -----------------------------------------------------------------------------------------
-                        // -----------------------------------------------------------------------------------------
                         // console.log(JSON.stringify(contract, null, 4));
                         if( isValidContract(contract) ) {
                             // Realizar la evaluación del contrato
@@ -53,15 +58,11 @@ const db = monk(url)
                             contractFlagCollection.push(evaluation.contratoFlags);
 
                             // Asignar valores del contractScore a los parties
-                            evaluation.contratoParties.map( (party) => {
+                            evaluation.contratoFlags.parties.map( (party) => {
                                 // Actualizar array global de objetos para party_flags
                                 updateFlagCollection(party, partyFlagCollection, evaluation.year, evaluation.contratoFlags.flags);
                             } );
                         }
-                        //console.log(partyFlagCollection);
-                        //process.exit(0);
-                        // -----------------------------------------------------------------------------------------
-                        // -----------------------------------------------------------------------------------------
                     } )
                     .then( () => {
                         // -----------------------------------------------------------------------------------------
@@ -72,55 +73,94 @@ const db = monk(url)
                         // -----------------------------------------------------------------------------------------
                         // -----------------------------------------------------------------------------------------
 
+                        // Insertar PARTY_FLAGS a la DB:
                         // Dividir el array en chunks de 1000, para cada chunk se convierte la data en el objeto para
                         // la DB, luego se envía el listado de objetos para insert/update en la DB
                         const chunkSize = 1000;
                         var numChunks = 0;
                         var upsertedChunks = 0;
-                        var totalInserted = 0;
-                        var totalMatched = 0;
                         var totalModified = 0;
                         var totalUpserted = 0;
 
-                        const arrayLength = partyFlagCollection.length;
-                        const expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
-                        const criteriaObj = getCriteriaObject(flags);
-                        const dbCollection = db.get('party_flags', { castIds: false });
+                        var arrayLength = partyFlagCollection.length;
+                        var expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
+                        var criteriaObj = getCriteriaObject(flags);
+                        var dbCollection = db.get('party_flags', { castIds: false });
 
                         for(i = 0; i < arrayLength; i += chunkSize) {
                             numChunks++;
                             console.log('START Chunk ' + numChunks);
 
                             var partyChunk = partyFlagCollection.slice(i, i + chunkSize);
-                            var party_flags = getCriteriaSummary(partyChunk, criteriaObj);
+                            var party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
 
                             // Send chunk to DB...
-                            var upsertPromises = sendCollectionToDB(party_flags, dbCollection);
+                            var upsertPromises = sendPartyCollectionToDB(party_flags, dbCollection);
                             // console.log(JSON.stringify(party_flags, null, 4));
                             Promise.all([upsertPromises]).then((results) => {
                                 upsertedChunks++;
                                 console.log('---------------------------------------------------------------------------');
                                 console.log('RESULT for chunk ' + upsertedChunks);
-                                console.log('INSERTED:', results[0].insertedCount);
-                                console.log('MATCHED:', results[0].matchedCount);
                                 console.log('MODIFIED:', results[0].modifiedCount);
                                 console.log('UPSERTED:', results[0].upsertedCount);
 
-                                totalInserted += results[0].insertedCount;
-                                totalMatched += results[0].matchedCount;
                                 totalModified += results[0].modifiedCount;
                                 totalUpserted += results[0].upsertedCount;
 
                                 if(upsertedChunks == expectedChunks) {
                                     console.log('---------------------------------------------------------------------------');
-                                    console.log('DONE!');
-                                    console.log('INSERTED:', totalInserted);
-                                    console.log('MATCHED:', totalMatched);
+                                    console.log('PARTY_FLAGS: DONE!');
                                     console.log('MODIFIED:', totalModified);
                                     console.log('UPSERTED:', totalUpserted);
                                     console.log('---------------------------------------------------------------------------');
-                                    console.timeEnd('duration');
-                                    process.exit(0);
+
+                                    // Insertar CONTRACT_FLAGS a la DB:
+                                    // Dividir el array en chunks de 1000, para cada chunk se convierte la data en el objeto para
+                                    // la DB, luego se envía el listado de objetos para insert/update en la DB
+                                    numChunks = 0;
+                                    upsertedChunks = 0;
+                                    totalModified = 0;
+                                    totalUpserted = 0;
+
+                                    arrayLength = contractFlagCollection.length;
+                                    expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
+                                    criteriaObj = getCriteriaObject(flags);
+                                    dbCollection = db.get('contract_flags', { castIds: false });
+
+                                    for(i = 0; i < arrayLength; i += chunkSize) {
+                                        numChunks++;
+                                        console.log('START Chunk ' + numChunks);
+
+                                        var contractChunk = contractFlagCollection.slice(i, i + chunkSize);
+                                        var contract_flags = getContractCriteriaSummary(contractChunk, criteriaObj);
+
+                                        // Send chunk to DB...
+                                        var upsertPromises = sendContractCollectionToDB(contract_flags, dbCollection);
+                                        // console.log(JSON.stringify(party_flags, null, 4));
+                                        Promise.all([upsertPromises]).then((results) => {
+                                            upsertedChunks++;
+
+                                            console.log('---------------------------------------------------------------------------');
+                                            console.log('RESULT for chunk ' + upsertedChunks);
+                                            console.log('INSERTED:', results[0].nInserted);
+
+                                            totalUpserted += results[0].nInserted;
+
+                                            if(upsertedChunks == expectedChunks) {
+                                                console.log('---------------------------------------------------------------------------');
+                                                console.log('CONTRACT_FLAGS: DONE!');
+                                                console.log('INSERTED:', totalUpserted);
+                                                console.log('---------------------------------------------------------------------------');
+                                                console.timeEnd('duration');
+
+                                                // ------------- THE END -------------
+                                                process.exit(0);
+                                                // ------------- THE END -------------
+                                            }
+                                        }).catch(e => { console.log('PROMISE ERROR', e) });
+
+                                        console.log('END Chunk ' + numChunks);
+                                    }
                                 }
                             }).catch(e => { console.log('PROMISE ERROR', e) });
 

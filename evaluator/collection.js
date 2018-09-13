@@ -86,7 +86,54 @@ function updateFlagCollection(party, collection, year, flags) {
     }
 }
 
-function getCriteriaSummary(collection, criteriaObj) {
+function getContractCriteriaSummary(collection, criteriaObj) {
+    let summary = [];
+
+    collection.map( (item) => {
+        let contractFlagObj = {
+            ocid: item.ocid,
+            date_signed: item.hasOwnProperty('date_signed')? item.date_signed : null,
+            source: item.source,
+            parties: item.parties
+        };
+        let criteria_score = JSON.parse(JSON.stringify(criteriaObj));
+
+        Object.assign(contractFlagObj, { criteria_score });
+        Object.assign(contractFlagObj, { rules_score: {} });
+
+        // Iterar sobre categorias
+        Object.keys(item.flags).map( function(categoria, index) {
+            var flagCount = 0;
+            contractFlagObj.rules_score[categoria] = {};
+
+            // Iterar sobre banderas
+            Object.keys(item.flags[categoria]).map( function(bandera, subindex) {
+                contractFlagObj.rules_score[categoria][bandera] = item.flags[categoria][bandera][0].score;
+                contractFlagObj.criteria_score[categoria] += item.flags[categoria][bandera][0].score;
+                flagCount++;
+            } );
+
+            contractFlagObj.criteria_score[categoria] /= flagCount;
+        } );
+
+        // calcular total_score global
+        var global_total = 0;
+        var num_categorias = 0;
+        Object.keys(contractFlagObj.criteria_score).map( function(cat, index) {
+            if(cat != 'total_score') {
+                global_total += contractFlagObj.criteria_score[cat];
+                num_categorias++;
+            }
+        } );
+        contractFlagObj.criteria_score.total_score = global_total / num_categorias;
+
+        summary.push(contractFlagObj);
+    } );
+
+    return summary;
+}
+
+function getPartyCriteriaSummary(collection, criteriaObj) {
     let summary = [];
 
     collection.map( (item) => {
@@ -167,7 +214,17 @@ function getCriteriaSummary(collection, criteriaObj) {
     return summary;
 }
 
-function sendCollectionToDB(flagCollection, dbCollection) {
+function sendContractCollectionToDB(flagCollection, dbCollection) {
+    const operations = [];
+
+    flagCollection.map( (flag) => operations.push( { insertOne: { document: flag } } ) );
+
+    return dbCollection.bulkWrite(operations, { ordered:true }, function(err, r) {
+        if(err) console.log('ERROR', err);
+    } );
+}
+
+function sendPartyCollectionToDB(flagCollection, dbCollection) {
     const operations = [];
 
     flagCollection.map( (flag) => operations.push( { updateOne: { filter: { 'party.id': flag.party.id }, update: { $set: {party: flag.party, criteria_score:flag.criteria_score}, $push: {years: flag.years[0]} }, upsert: true } } ) );
@@ -177,4 +234,11 @@ function sendCollectionToDB(flagCollection, dbCollection) {
     } );
 }
 
-module.exports = { createFlagCollectionObject, updateFlagCollection, getCriteriaSummary, sendCollectionToDB };
+module.exports = {
+    createFlagCollectionObject,
+    updateFlagCollection,
+    getPartyCriteriaSummary,
+    getContractCriteriaSummary,
+    sendPartyCollectionToDB,
+    sendContractCollectionToDB
+};
