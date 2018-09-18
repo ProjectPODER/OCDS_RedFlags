@@ -97,14 +97,18 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
         // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
         if(role == 'buyer') {
             // Sacamos la dependencia del parent
-            var nombreDependencia = party.hasOwnProperty('parent')? party.parent : party.memberOf.name;
 
-            var dependencyObj = {
+            if (party.hasOwnProperty('parent') || party.hasOwnProperty('memberOf') ) {
+              
+              var nombreDependencia = party.hasOwnProperty('parent')? party.parent : party.memberOf.name;
+
+              var dependencyObj = {
                 id: simpleName(launder(nombreDependencia)),
                 name: nombreDependencia,
                 entity: 'dependency'
+              }
+              contratoParties.push(dependencyObj);
             }
-            contratoParties.push(dependencyObj);
 
             // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
             switch(party.govLevel) {
