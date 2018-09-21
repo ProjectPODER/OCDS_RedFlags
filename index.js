@@ -33,8 +33,9 @@ const flags = parseFlags(args.flags);
 const flagCollectionObj = createFlagCollectionObject(flags);
 const contractFlagCollection = [];
 const partyFlagCollection = [];
+const partyFlagIndex = [];
 
-const query = {'contracts.period.startDate': {$gt: new Date(args.year + '-01-01T00:00:00.000Z'), $lt: new Date(args.year + '-12-31T23:59:59.000Z')}}
+const query = {'contracts.period.startDate': {$gte: new Date(args.year + '-01-01T00:00:00.000Z'), $lte: new Date(args.year + '-12-31T23:59:59.000Z')}}
 
 // Connection URL
 const url = 'mongodb://localhost:27017/' + args.database;
@@ -60,7 +61,7 @@ const db = monk(url)
                             // Asignar valores del contractScore a los parties
                             evaluation.contratoFlags.parties.map( (party) => {
                                 // Actualizar array global de objetos para party_flags
-                                updateFlagCollection(party, partyFlagCollection, evaluation.year, evaluation.contratoFlags.flags);
+                                updateFlagCollection(party, partyFlagCollection, partyFlagIndex, evaluation.year, evaluation.contratoFlags.flags);
                             } );
                         }
                     } )
@@ -89,7 +90,7 @@ const db = monk(url)
 
                         for(i = 0; i < arrayLength; i += chunkSize) {
                             numChunks++;
-                            console.log('START Chunk ' + numChunks);
+                            console.log('PARTIES Chunk ' + numChunks);
 
                             var partyChunk = partyFlagCollection.slice(i, i + chunkSize);
                             var party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
@@ -101,8 +102,7 @@ const db = monk(url)
                                 upsertedChunks++;
                                 console.log('---------------------------------------------------------------------------');
                                 console.log('RESULT for chunk ' + upsertedChunks);
-                                console.log('MODIFIED:', results[0].modifiedCount);
-                                console.log('UPSERTED:', results[0].upsertedCount);
+                                console.log('MODIFIED:', results[0].modifiedCount, 'UPSERTED:', results[0].upsertedCount);
 
                                 totalModified += results[0].modifiedCount;
                                 totalUpserted += results[0].upsertedCount;
@@ -110,8 +110,7 @@ const db = monk(url)
                                 if(upsertedChunks == expectedChunks) {
                                     console.log('---------------------------------------------------------------------------');
                                     console.log('PARTY_FLAGS: DONE!');
-                                    console.log('MODIFIED:', totalModified);
-                                    console.log('UPSERTED:', totalUpserted);
+                                    console.log('MODIFIED:', totalModified, 'UPSERTED:', totalUpserted);
                                     console.log('---------------------------------------------------------------------------');
 
                                     // Insertar CONTRACT_FLAGS a la DB:
@@ -129,7 +128,7 @@ const db = monk(url)
 
                                     for(i = 0; i < arrayLength; i += chunkSize) {
                                         numChunks++;
-                                        console.log('START Chunk ' + numChunks);
+                                        console.log('CONTRACTS Chunk ' + numChunks);
 
                                         var contractChunk = contractFlagCollection.slice(i, i + chunkSize);
                                         var contract_flags = getContractCriteriaSummary(contractChunk, criteriaObj);
@@ -151,6 +150,9 @@ const db = monk(url)
                                                 console.log('CONTRACT_FLAGS: DONE!');
                                                 console.log('INSERTED:', totalUpserted);
                                                 console.log('---------------------------------------------------------------------------');
+
+                                                console.log(contractFlagCollection.length + ' contratos procesados.');
+                                                console.log(partyFlagCollection.length + ' entidades procesadas.');
                                                 console.timeEnd('duration');
 
                                                 // ------------- THE END -------------
@@ -158,19 +160,12 @@ const db = monk(url)
                                                 // ------------- THE END -------------
                                             }
                                         }).catch(e => { console.log('PROMISE ERROR', e) });
-
-                                        console.log('END Chunk ' + numChunks);
                                     }
                                 }
                             }).catch(e => { console.log('PROMISE ERROR', e) });
-
-                            console.log('END Chunk ' + numChunks);
                         }
 
-                        console.log(contractFlagCollection.length + ' contratos procesados.');
-                        console.log(partyFlagCollection.length + ' entidades procesadas.');
                         console.log('End streaming.');
-                        // process.exit(0);
                     } );
             } )
             .catch( (err) => { console.log('Error connecting to ' + args.database, err) } );

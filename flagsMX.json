@@ -42,8 +42,8 @@
       "minimum": [
         {
           "conditions": {
-            "country": "MX",
-            "Tender.procurementMethodCaracterMxCnet": {
+            "parties.address.countryName": "Mexico",
+            "tender.procurementMethodCaracterMxCnet": {
               "or": [
                 "Nacional",
                 "undefined"
@@ -54,16 +54,16 @@
         },
         {
           "conditions": {
-            "country": "MX",
-            "Tender.procurementMethodCaracterMxCnet": "Internacional"
+            "parties.address.countryName": "Mexico",
+            "tender.procurementMethodCaracterMxCnet": "Internacional"
           },
           "value": 20
         }
       ]
     },
     "fields":{
-      "from":"Tender.period.startDate",
-      "to": "Tender.period.endDate"
+      "from":"tender.tenderPeriod.startDate",
+      "to": "tender.tenderPeriod.endDate"
       }
   },
   {
@@ -71,11 +71,11 @@
     "name": "Fechas sospechosas",
     "type": "check-dates-bool",
     "fields": [
-      "award.date",
-      "tender.period.endDate",
-      "tender.period.startDate",
-      "contract.date",
-      "contract.period.startDate"
+      "awards.date",
+      "tender.tenderPeriod.endDate",
+      "tender.tenderPeriod.startDate",
+      "contracts.date",
+      "contracts.period.startDate"
     ],
     "dates": [
           "1/1",
@@ -104,8 +104,8 @@
       "maximum": 1000
     },
     "fields":{
-      "from":"contract.period.startDate",
-      "to": "contract.period.endDate"
+      "from":"contracts.period.startDate",
+      "to": "contracts.period.endDate"
     }
   },
   {
@@ -116,7 +116,7 @@
       {
           "value":"parties.name",
           "conditions": {
-            "parties.role": "supplier"
+            "parties.roles": "supplier"
           }
       },
       "tender.procurementMethod"
@@ -147,15 +147,15 @@
     "fields": [
       "planning.budget",
       {
-        "value": "party.name",
+        "value": "parties.name",
         "conditions": {
-          "party.role": "supplier"
+          "parties.roles": "supplier"
         }
       },
       {
-        "value": "party.name",
+        "value": "parties.name",
         "conditions": {
-          "party.role": "buyer"
+          "parties.role": "buyer"
         }
       }
     ]
@@ -186,9 +186,9 @@
     "category": "Trazabilidad",
     "name": "Proveedor fantasma",
     "fields": [{
-        "value": "party.identifier.id",
+        "value": "parties.identifier.id",
         "conditions": {
-          "party.role": "supplier"
+          "parties.roles": "supplier"
         }
     }],
     "type": "check-fields-bool"
@@ -198,7 +198,7 @@
     "name": "Importe redondeado",
     "fields": [
       {
-        "value":"contract.amount.value",
+        "value":"contracts.amount.value",
         "operation": {
         "substr":[-5]
         }

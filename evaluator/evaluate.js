@@ -56,7 +56,7 @@ function getFlagScore(contract, flag) {
             return checkComprensibilityFlag();
             break;
         case 'date-difference-bool':
-            return dateDifferenceFlag();
+            return dateDifferenceFlag(contract, flag.fields, flag.difference);
             break;
         case 'field-equality-bool':
             return checkFieldsComparisonFlag(contract, flag.fields);
@@ -74,6 +74,7 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
     delete contratoFlags.entity;
 
     Object.assign(contratoFlags, { ocid: contract.ocid });
+    Object.assign(contratoFlags, { value: contract.contracts[0].value });
 
     if( contract.contracts[0].hasOwnProperty('dateSigned') ) {
         Object.assign(contratoFlags, { date_signed: contract.contracts[0].dateSigned });
@@ -92,7 +93,6 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
             name: party.name,
             entity: role
         }
-        contratoParties.push(partyObj);
 
         // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
         if(role == 'buyer') {
@@ -105,6 +105,8 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                 entity: 'dependency'
             }
             contratoParties.push(dependencyObj);
+
+            Object.assign( partyObj, { parent: simpleName(launder(nombreDependencia)) } );
 
             // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
             switch(party.govLevel) {
@@ -120,6 +122,7 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                     var cityObj = {
                         id: simpleName(launder(party.address.locality)),
                         name: party.address.locality,
+                        parent: simpleName(launder(party.address.region)),
                         entity: 'municipality'
                     }
                     contratoParties.push(cityObj);
@@ -129,6 +132,8 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                     break;
             }
         }
+
+        contratoParties.push(partyObj);
     } );
 
     // Iterar sobre las reglas
