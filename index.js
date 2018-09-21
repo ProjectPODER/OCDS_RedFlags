@@ -29,6 +29,7 @@ if(!args.year) {
     process.exit(1);
 }
 
+let seenContracts = 0;
 const flags = parseFlags(args.flags);
 const flagCollectionObj = createFlagCollectionObject(flags);
 const contractFlagCollection = [];
@@ -52,6 +53,7 @@ const db = monk(url)
                 // contracts.find({}, { limit: 100000, sort: { 'contracts.period.startDate': -1 } })
                 contracts.find( query )
                     .each( (contract, {close, pause, resume}) => {
+                        seenContracts++;
                         // console.log(JSON.stringify(contract, null, 4));
                         if( isValidContract(contract) ) {
                             // Realizar la evaluación del contrato
@@ -66,6 +68,10 @@ const db = monk(url)
                         }
                     } )
                     .then( () => {
+                        if(seenContracts == 0) {
+                            console.log('No contracts seen.');
+                            process.exit(0);
+                        }
                         // -----------------------------------------------------------------------------------------
                         // -----------------------------------------------------------------------------------------
 

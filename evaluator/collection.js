@@ -34,6 +34,9 @@ function updateFlagCollection(party, collection, flagIndex, year, flags) {
         newObj.name = party.name;
         newObj.type = 'party';
         newObj.entity = party.entity;
+        if(party.hasOwnProperty('parent')) {
+            newObj.parent = party.parent;
+        }
         newObj.flags = JSON.parse(JSON.stringify(flags));
         newObj.contract_count = [];
         newObj.contract_count.push({ year: year, count: 1 });
@@ -146,7 +149,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             name: item.name,
             type: item.entity
         };
-        
+
         if(item.hasOwnProperty('parent')) {
             Object.assign( party, { parent: item.parent } )
         }

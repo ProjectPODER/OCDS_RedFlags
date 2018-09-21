@@ -2,7 +2,7 @@
 
 db.getCollection("party_flags").find({}).forEach(function(x) {
   	sup = "";
-	if (x.party.type == "buyer" || x.party.type == "dependency" || x.party.type == "Municipio") {
+	if (x.party.type == "buyer" || x.party.type == "dependency" || x.party.type == "municipality") {
 		sup = x.party.id;
 	}
 
@@ -11,4 +11,3 @@ db.getCollection("party_flags").find({}).forEach(function(x) {
 	  db.getCollection("organizations").save(z)
 	});
 })
-

@@ -35,7 +35,7 @@ function getFlagScore(contract, flag) {
             return checkDatesFlag();
             break;
         case 'check-field-value-bool':
-            return checkFieldsValueFlag();
+            return checkFieldsValueFlag(contract, flag.fields, flag.values);
             break;
         case 'check-fields-bool':
             return checkFieldsFlag(contract, flag.fields);
@@ -99,7 +99,7 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
             // Sacamos la dependencia del parent
 
             if (party.hasOwnProperty('parent') || party.hasOwnProperty('memberOf') ) {
-              
+
               var nombreDependencia = party.hasOwnProperty('parent')? party.parent : party.memberOf.name;
 
               var dependencyObj = {
@@ -110,7 +110,7 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
               contratoParties.push(dependencyObj);
             }
 
-            Object.assign( partyObj, { parent: simpleName(launder(nombreDependencia)) } );
+            Object.assign( partyObj, { parent: { id: simpleName(launder(nombreDependencia)), name: nombreDependencia } } );
 
             // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
             switch(party.govLevel) {
@@ -126,7 +126,7 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                     var cityObj = {
                         id: simpleName(launder(party.address.locality)),
                         name: party.address.locality,
-                        parent: simpleName(launder(party.address.region)),
+                        parent: { id: simpleName(launder(party.address.region)), name: party.address.region },
                         entity: 'municipality'
                     }
                     contratoParties.push(cityObj);

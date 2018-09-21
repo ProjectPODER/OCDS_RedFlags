@@ -22,6 +22,10 @@ function isString(x) {
     return Object.prototype.toString.call(x) === "[object String]"
 }
 
+function isNumeric(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 function isDate(d) {
     return typeof d.toISOString === "function";
 }
@@ -60,9 +64,9 @@ function fieldPathExists(field, tempObj) {
             return fieldValues;
         }
 
-        // Si el valor del campo es un string
-        else if( isString(tempObj[fieldPath[i]]) ) {
-            if(i < fieldPath.length - 1) { // Llegó a un string pero no ha llegado al final del path
+        // Si el valor del campo es un string o un número
+        else if( isString(tempObj[fieldPath[i]]) || isNumeric(tempObj[fieldPath[i]]) ) {
+            if(i < fieldPath.length - 1) { // Llegó a un string o número pero no ha llegado al final del path
                 return fieldValues;
             }
             if(tempObj[fieldPath[i]] == '' || tempObj[fieldPath[i]] == '---' || tempObj[fieldPath[i]] == 'null') { // Llegó a string vacío, '---' o 'null'
@@ -273,8 +277,57 @@ function checkFieldsFlag(contract, fields) {
     }
 }
 
-function checkFieldsValueFlag() {
-    return 0.5;
+// Tipo: check-field-value-bool
+// Descripción: Compara el valor de un campo a un conjunto de valores. Si coincide da false.
+// Parámetros:
+//      fields: Array de campos a comparar.
+//      values: Array de valores a comparar con el de los campos.
+function checkFieldsValueFlag(contract, fields, values) {
+    var foundValue = false;
+
+    if(fields.length > 0) {
+        // Iteramos sobre los campos que queremos evaluar
+        fields.map( (field) => {
+            if(isString(field)) { // Es un campo plano, sin condiciones
+                var fieldValue = fieldPathExists(field, contract);
+                if(fieldValue.length > 0) {
+                    // Iteramos sobre los valores que encontramos para el campo
+                    fieldValue.map( (fieldValue) => {
+                        // Iteramos sobre los valores que queremos comparar con lo que contiene el contrato
+                        values.map( (value) => {
+                            if(value == fieldValue) { // Encontró uno de los valores...
+                                foundValue = true;
+                            }
+                        } );
+                    } );
+                }
+            }
+            else {
+                // Es un objeto, hay que hacer el proceso complicado porque trae condiciones...
+                var fieldValue = fieldPathExists(field.value, contract);
+                if(fieldValue.length > 0) {
+                    // Iteramos sobre los valores que encontramos para el campo
+                    fieldValue.map( (itemValue) => {
+                        switch( Object.keys(field.operation)[0] ) { // Decidir qué operación aplicar sobre el valor del campo
+                            case 'substr':
+                                var operatedValue = itemValue.toString().substr(field.operation.substr[0]);
+                                // Iteramos sobre los valores que queremos comparar con lo que contiene el contrato
+                                values.map( (value) => {
+                                    if(value == operatedValue) { // Encontró uno de los valores...
+                                        foundValue = true;
+                                    }
+                                } );
+                                break;
+                        }
+                    } );
+                }
+            }
+        } );
+        return foundValue ? 0 : 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 // Tipo: check-fields-inverse
