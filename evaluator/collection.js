@@ -18,27 +18,34 @@ function createFlagCollectionObject(flags) {
     return flagCollObj;
 }
 
-function findObjectInCollection(id, collection) {
-    return collection.filter( function(item) { return item.id == id } )[0];
+function findObjectInCollection(id, flagIndex) {
+    return flagIndex.indexOf(id);
+    // return collection.filter( function(item) { return item.id == id } )[0];
 }
 
-function updateFlagCollection(party, collection, year, flags) {
-    let obj = findObjectInCollection(party.id, collection);
+function updateFlagCollection(party, collection, flagIndex, year, flags) {
+    let objIndex = findObjectInCollection(party.id, flagIndex);
+    let obj = null;
 
-    if(obj === undefined) {
+    if(objIndex == -1) {
         // No existe el party todavía...
         let newObj = {};
         newObj.id = party.id;
         newObj.name = party.name;
         newObj.type = 'party';
         newObj.entity = party.entity;
+        if(party.hasOwnProperty('parent')) {
+            newObj.parent = party.parent;
+        }
         newObj.flags = JSON.parse(JSON.stringify(flags));
         newObj.contract_count = [];
         newObj.contract_count.push({ year: year, count: 1 });
 
         collection.push(newObj);
+        flagIndex.push(party.id);
     }
     else {
+        obj = collection[objIndex];
         if(obj.contract_count.filter( function(item) { return item.year == year } ).length == 0)
         {
             // El party no tiene contratos para el año todavía...
@@ -142,6 +149,11 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             name: item.name,
             type: item.entity
         };
+
+        if(item.hasOwnProperty('parent')) {
+            Object.assign( party, { parent: item.parent } )
+        }
+
         let criteria_score = JSON.parse(JSON.stringify(criteriaObj));
         let years = [];
         let partyFlagObj = {

@@ -42,8 +42,8 @@
       "minimum": [
         {
           "conditions": {
-            "country": "MX",
-            "Tender.procurementMethodCaracterMxCnet": {
+            "parties.address.countryName": "Mexico",
+            "tender.procurementMethodCaracterMxCnet": {
               "or": [
                 "Nacional",
                 "undefined"
@@ -54,16 +54,16 @@
         },
         {
           "conditions": {
-            "country": "MX",
-            "Tender.procurementMethodCaracterMxCnet": "Internacional"
+            "parties.address.countryName": "Mexico",
+            "tender.procurementMethodCaracterMxCnet": "Internacional"
           },
           "value": 20
         }
       ]
     },
     "fields":{
-      "from":"Tender.period.startDate",
-      "to": "Tender.period.endDate"
+      "from":"tender.tenderPeriod.startDate",
+      "to": "tender.tenderPeriod.endDate"
       }
   },
   {
@@ -71,11 +71,11 @@
     "name": "Fechas sospechosas",
     "type": "check-dates-bool",
     "fields": [
-      "award.date",
-      "tender.period.endDate",
-      "tender.period.startDate",
-      "contract.date",
-      "contract.period.startDate"
+      "awards.date",
+      "tender.tenderPeriod.endDate",
+      "tender.tenderPeriod.startDate",
+      "contracts.date",
+      "contracts.period.startDate"
     ],
     "dates": [
           "1/1",
@@ -104,8 +104,8 @@
       "maximum": 1000
     },
     "fields":{
-      "from":"contract.period.startDate",
-      "to": "contract.period.endDate"
+      "from":"contracts.period.startDate",
+      "to": "contracts.period.endDate"
     }
   },
   {
@@ -116,7 +116,7 @@
       {
           "value":"parties.name",
           "conditions": {
-            "parties.role": "supplier"
+            "parties.roles": "supplier"
           }
       },
       "tender.procurementMethod"
@@ -126,10 +126,87 @@
     "category": "Competitividad",
     "name": "Paraísos fiscales",
     "type": "check-field-value-bool",
-    "fields": "party.address.countryName",
+    "fields": ["parties.address.countryName"],
     "values": [
-      "Uruguay",
-      "/* Armar listado de paises basado en https://www.financialsecrecyindex.com/introduction/fsi-2018-results mayores a 60 */"
+        "AD",
+        "AI",
+        "AG",
+        "AW",
+        "BS",
+        "BH",
+        "BB",
+        "BZ",
+        "BM",
+        "BO",
+        "BW",
+        "VG",
+        "BN",
+        "KY",
+        "CL",
+        "CN",
+        "CK",
+        "CR",
+        "CW",
+        "CY",
+        "DM",
+        "DO",
+        "GM",
+        "GH",
+        "GI",
+        "GD",
+        "GT",
+        "GG",
+        "HK",
+        "IS",
+        "IM",
+        "IL",
+        "ID",
+        "JP",
+        "KE",
+        "JE",
+        "LB",
+        "LR",
+        "LI",
+        "MO",
+        "MK",
+        "MY",
+        "MV",
+        "MT",
+        "MH",
+        "MU",
+        "MC",
+        "ME",
+        "MS",
+        "NR",
+        "NL",
+        "PA",
+        "PY",
+        "PH",
+        "PR",
+        "RO",
+        "RU",
+        "WS",
+        "SM",
+        "SA",
+        "SC",
+        "SG",
+        "KN",
+        "LC",
+        "VC",
+        "CH",
+        "TZ",
+        "TW",
+        "TH",
+        "TT",
+        "TR",
+        "TC",
+        "UA",
+        "UY",
+        "AE",
+        "VI",
+        "US",
+        "VU",
+        "VE"
     ]
   },
   {
@@ -147,15 +224,15 @@
     "fields": [
       "planning.budget",
       {
-        "value": "party.name",
+        "value": "parties.name",
         "conditions": {
-          "party.role": "supplier"
+          "parties.roles": "supplier"
         }
       },
       {
-        "value": "party.name",
+        "value": "parties.name",
         "conditions": {
-          "party.role": "buyer"
+          "parties.role": "buyer"
         }
       }
     ]
@@ -186,9 +263,9 @@
     "category": "Trazabilidad",
     "name": "Proveedor fantasma",
     "fields": [{
-        "value": "party.identifier.id",
+        "value": "parties.identifier.id",
         "conditions": {
-          "party.role": "supplier"
+          "parties.roles": "supplier"
         }
     }],
     "type": "check-fields-bool"
@@ -198,7 +275,7 @@
     "name": "Importe redondeado",
     "fields": [
       {
-        "value":"contract.amount.value",
+        "value":"contracts.value.amount",
         "operation": {
         "substr":[-5]
         }
