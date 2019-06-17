@@ -1,16 +1,6 @@
 [
   {
     "category": "Transparencia",
-    "name": "OCDS válido",
-    "type": "check-schema-bool"
-  },
-  {
-    "category": "Transparencia",
-    "name": "Campos completos",
-    "type": "check-all-fields-rate"
-  },
-  {
-    "category": "Transparencia",
     "name": "Secciones completas",
     "type": "check-sections-bool",
     "fields": [
@@ -43,7 +33,7 @@
         {
           "conditions": {
             "parties.address.countryName": "Mexico",
-            "tender.procurementMethodCaracterMxCnet": {
+            "tender.procurementMethodCharacterMxCnet": {
               "or": [
                 "Nacional",
                 "undefined"
@@ -55,7 +45,7 @@
         {
           "conditions": {
             "parties.address.countryName": "Mexico",
-            "tender.procurementMethodCaracterMxCnet": "Internacional"
+            "tender.procurementMethodCharacterMxCnet": "Internacional"
           },
           "value": 20
         }
@@ -65,36 +55,6 @@
       "from":"tender.tenderPeriod.startDate",
       "to": "tender.tenderPeriod.endDate"
       }
-  },
-  {
-    "category": "Temporalidad",
-    "name": "Fechas sospechosas",
-    "type": "check-dates-bool",
-    "fields": [
-      "awards.date",
-      "tender.tenderPeriod.endDate",
-      "tender.tenderPeriod.startDate",
-      "contracts.date",
-      "contracts.period.startDate"
-    ],
-    "dates": [
-          "1/1",
-          "5/2",
-          "tercer lunes de marzo",
-          "19/3",
-          "29/3",
-          "30/3",
-          "semana santa",
-          "1/5",
-          "1/7 (cada 6 años)",
-          "16/9",
-          "2/10",
-          "tercer lunes de noviembre",
-          "1/12",
-          "12/12",
-          "25/12",
-          "domingo"
-    ]
   },
   {
     "category": "Temporalidad",
@@ -287,7 +247,7 @@
   {
     "category": "Trazabilidad",
     "name": "Comprensión del título",
-    "fields": ["contracts.title","TODO: falta otro: row23 y row26"],
+    "fields": ["contracts.title", "awards.title", "tender.title"],
     "type": "comprensibility"
   },
   {

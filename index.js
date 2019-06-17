@@ -36,7 +36,8 @@ const contractFlagCollection = [];
 const partyFlagCollection = [];
 const partyFlagIndex = [];
 
-const query = {'contracts.period.startDate': {$gte: new Date(args.year + '-01-01T00:00:00.000Z'), $lte: new Date(args.year + '-12-31T23:59:59.000Z')}}
+// const query = {'contracts.period.startDate': {$gte: new Date(args.year + '-01-01T00:00:00.000Z'), $lte: new Date(args.year + '-12-31T23:59:59.000Z')}}
+const query = {};
 
 // Connection URL
 const url = 'mongodb://localhost:27017/' + args.database;
