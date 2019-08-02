@@ -66,8 +66,7 @@ const db = monk(url)
             // console.log(seenContracts, contract.ocid);
             // Perform evaluation of the document
             let evaluations = evaluateFlags(contract, flags, flagCollectionObj);
-            let contract_summary = getContractCriteriaSummary(evaluations.contratoFlags);
-            console.log( JSON.stringify(contract_summary, null, 4) );
+
             evaluations.map( (evaluation) => {
                 contractFlagCollection.push(evaluation.contratoFlags);
                 // Assign contractScore values to all the parties involved
