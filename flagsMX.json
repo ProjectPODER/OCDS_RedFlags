@@ -1,6 +1,11 @@
 [
   {
     "category": "Transparencia",
+    "name": "OCDS válido",
+    "type": "check-schema-bool"
+  },
+  {
+    "category": "Transparencia",
     "name": "Secciones completas",
     "type": "check-sections-bool",
     "fields": [

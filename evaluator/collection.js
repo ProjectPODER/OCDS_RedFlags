@@ -19,7 +19,11 @@ function createFlagCollectionObject(flags) {
 }
 
 function findObjectInCollection(id, flagIndex) {
-    return flagIndex.indexOf(id);
+    for(let i=flagIndex.length; i>=0; i--) {
+        if(flagIndex[i] == id) return i;
+    }
+    return -1;
+    // return flagIndex.indexOf(id);
     // return collection.filter( function(item) { return item.id == id } )[0];
 }
 

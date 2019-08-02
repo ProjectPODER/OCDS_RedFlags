@@ -354,7 +354,7 @@ function checkNotFieldsFlag(contract, fields) {
 //      contract: contrato a evaluar
 //      schema: url del archivo con el schema a comparar
 function checkSchemaFlag() {
-    return 0.5;
+    return 0;
 }
 
 // Tipo: check-sections-bool

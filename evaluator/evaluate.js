@@ -22,7 +22,13 @@ function simpleName(string) {
 }
 
 function getContractYear(contract) {
-    let startDate = contract.contracts[0].period.startDate.toISOString();
+    let startDate = '';
+
+    if ( Object.prototype.toString.call(contract.contracts[0].period.startDate) === "[object Date]" )
+        startDate = contract.contracts[0].period.startDate.toISOString();
+    else
+        startDate = contract.contracts[0].period.startDate;
+
     return startDate.split('-')[0];
 }
 
@@ -64,43 +70,99 @@ function getFlagScore(contract, flag) {
     }
 }
 
-function evaluateFlags(contract, flags, flagCollectionObj) {
-    let year = getContractYear(contract);
+function getContractsFromRecord(record) {
+    let contracts = [];
+    record.contracts.map( (contract) => {
+        let buyer_id = record.buyer.id;
+        let buyer_party = record.parties.filter( (party) => party.id == buyer_id )[0];
+        let award_id = contract.awardID;
+        let award = record.awards.filter( (award) => award.id == award_id )[0];
+        let supplier_ids = [];
+        award.suppliers.map( (supplier) => supplier_ids.push(supplier.id) );
+        let supplier_parties = record.parties.filter( (party) => supplier_ids.indexOf(party.id) >= 0 );
 
-    let contratoFlags = JSON.parse(JSON.stringify(flagCollectionObj));
-    contratoFlags.type = 'contract';
-    delete contratoFlags.id;
-    delete contratoFlags.name;
-    delete contratoFlags.entity;
+        let computed_contract = {};
+        for( var x in record ) {
+            switch(x) {
+                case 'parties':
+                    if(buyer_party)
+                        computed_contract.parties = [ buyer_party ];
+                    else
+                        computed_contract.parties = [];
+                    if(supplier_parties.length > 0)
+                        supplier_parties.map( (supplier) => computed_contract.parties.push(supplier) );
+                    break;
+                case 'awards':
+                    computed_contract.awards = [ award ];
+                    break;
+                case 'contracts':
+                    computed_contract.contracts = [ contract ];
+                    break;
+                case 'dataSource':
+                case 'total_amount':
+                    // Ignore these properties if present, not part of OCDS
+                    break;
+                default:
+                    computed_contract[x] = record[x];
+                    break;
+            }
+        }
 
-    Object.assign(contratoFlags, { ocid: contract.ocid });
-    Object.assign(contratoFlags, { value: contract.contracts[0].value });
+        contracts.push(computed_contract);
+    } );
 
-    if( contract.contracts[0].hasOwnProperty('period') ) {
-        Object.assign(contratoFlags, { date_signed: contract.contracts[0].period.startDate });
-    }
-    if( contract.hasOwnProperty('source') ) {
-        Object.assign(contratoFlags, { source: contract.source });
-    }
+    return contracts;
+}
 
-    // Obtenemos los parties del objeto parties del contrato
-    let contratoParties = [];
-    contract.parties.map( (party) => {
-        var role = party.hasOwnProperty('role')? party.role : party.roles;
+function evaluateFlags(record, flags, flagCollectionObj) {
+    let contracts = getContractsFromRecord(record);
+    let results = [];
 
-        if(role == 'funder') {
-            if(party.id.indexOf(';') > -1) {
-                var ids = party.id.split(';');
-                var names = party.name.split(';');
+    // Iterate over all contracts in the document, creating a separate evaluation for each...
+    contracts.map( (contract) => {
+        let year = getContractYear(contract);
+        let contratoFlags = JSON.parse(JSON.stringify(flagCollectionObj));
+        contratoFlags.type = 'contract';
 
-                ids.map( (id, index) => {
-                    var funderObj = {
-                        id: id,
-                        name: names[index],
+        delete contratoFlags.name;
+        delete contratoFlags.entity;
+
+        Object.assign(contratoFlags, { id: contract.contracts[0].id });
+        Object.assign(contratoFlags, { ocid: contract.ocid });
+        Object.assign(contratoFlags, { value: contract.contracts[0].value });
+
+        if( contract.contracts[0].hasOwnProperty('period') ) {
+            Object.assign(contratoFlags, { date_signed: contract.contracts[0].period.startDate });
+        }
+        if( contract.hasOwnProperty('source') ) {
+            Object.assign(contratoFlags, { source: contract.source });
+        }
+
+        let contratoParties = [];
+        contract.parties.map( (party) => {
+            var role = party.hasOwnProperty('role')? party.role : party.roles[0];
+
+            if(role == 'funder') {
+                if(party.id.indexOf(';') > -1) {
+                    var ids = party.id.split(';');
+                    var names = party.name.split(';');
+
+                    ids.map( (id, index) => {
+                        var funderObj = {
+                            id: id,
+                            name: names[index],
+                            entity: role
+                        }
+                        contratoParties.push(funderObj);
+                    } );
+                }
+                else {
+                    var partyObj = {
+                        id: party.id,
+                        name: party.name,
                         entity: role
                     }
-                    contratoParties.push(funderObj);
-                } );
+                }
             }
             else {
                 var partyObj = {
@@ -109,72 +171,63 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                     entity: role
                 }
             }
-        }
-        else {
-            var partyObj = {
-                id: party.id,
-                name: party.name,
-                entity: role
+
+            // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
+            if(role == 'buyer') {
+                // Sacamos la dependencia del parent
+                if ( party.hasOwnProperty('memberOf') ) {
+                  var dependencyObj = {
+                    id: party.memberOf[0].id,
+                    name: party.memberOf[0].name,
+                    entity: 'dependency'
+                  }
+                  contratoParties.push(dependencyObj);
+                }
+
+                Object.assign( partyObj, { parent: { id: party.memberOf[0].id, name: party.memberOf[0].name } } );
+
+                // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
+                switch(party.govLevel) {
+                    case 'region':
+                        var stateObj = {
+                            id: simpleName(launder(party.address.region)),
+                            name: party.address.region,
+                            entity: 'state'
+                        }
+                        contratoParties.push(stateObj);
+                        break;
+                    case 'city':
+                        var cityObj = {
+                            id: simpleName(launder(party.address.locality)),
+                            name: party.address.locality,
+                            parent: { id: simpleName(launder(party.address.region)), name: party.address.region },
+                            entity: 'municipality'
+                        }
+                        contratoParties.push(cityObj);
+                        break;
+                    case 'country':
+                        // No se hace nada a nivel de país...
+                        break;
+                }
             }
-        }
-
-        // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
-        if(role == 'buyer') {
-            // Sacamos la dependencia del parent
-
-            if (party.hasOwnProperty('parent') || party.hasOwnProperty('memberOf') ) {
-
-              var nombreDependencia = party.hasOwnProperty('parent')? party.parent : party.memberOf.name;
-
-              var dependencyObj = {
-                id: simpleName(launder(nombreDependencia)),
-                name: nombreDependencia,
-                entity: 'dependency'
-              }
-              contratoParties.push(dependencyObj);
+            if(partyObj) {
+                contratoParties.push(partyObj);
             }
+        } );
 
-            Object.assign( partyObj, { parent: { id: simpleName(launder(nombreDependencia)), name: nombreDependencia } } );
+        // Iterar sobre las reglas
+        flags.map( (flag) => {
+            let flagScore = getFlagScore(contract, flag);
+            contratoFlags.flags[flag.categoryID][flag.id].push({ year: year, score: flagScore });
+        } );
 
-            // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
-            switch(party.govLevel) {
-                case 'region':
-                    var stateObj = {
-                        id: simpleName(launder(party.address.region)),
-                        name: party.address.region,
-                        entity: 'state'
-                    }
-                    contratoParties.push(stateObj);
-                    break;
-                case 'city':
-                    var cityObj = {
-                        id: simpleName(launder(party.address.locality)),
-                        name: party.address.locality,
-                        parent: { id: simpleName(launder(party.address.region)), name: party.address.region },
-                        entity: 'municipality'
-                    }
-                    contratoParties.push(cityObj);
-                    break;
-                case 'country':
-                    // No se hace nada a nivel de país...
-                    break;
-            }
-        }
-        if(partyObj) {
-            contratoParties.push(partyObj);
-        }
+        // Agregar los parties al contrato
+        Object.assign(contratoFlags, { parties: contratoParties });
+
+        results.push( { contratoFlags, year } );
     } );
 
-    // Iterar sobre las reglas
-    flags.map( (flag) => {
-        let flagScore = getFlagScore(contract, flag);
-        contratoFlags.flags[flag.categoryID][flag.id].push({ year: year, score: flagScore });
-    } );
-
-    // Agregar los parties al contrato
-    Object.assign(contratoFlags, { parties: contratoParties });
-
-    return { contratoFlags, year };
+    return results;
 }
 
 module.exports = evaluateFlags;
