@@ -65,10 +65,10 @@ const db = monk(url)
         if( isValidContract(contract) ) {
             // console.log(seenContracts, contract.ocid);
             // Perform evaluation of the document
-            const evaluations = evaluateFlags(contract, flags, flagCollectionObj);
+            let evaluations = evaluateFlags(contract, flags, flagCollectionObj);
+            let contract_summary = getContractCriteriaSummary(evaluations.contratoFlags);
+            console.log( JSON.stringify(contract_summary, null, 4) );
             evaluations.map( (evaluation) => {
-                // process.stdout.write( JSON.stringify(evaluation.contratoFlags) );
-                // process.stdout.write( "\n" );
                 contractFlagCollection.push(evaluation.contratoFlags);
                 // Assign contractScore values to all the parties involved
                 evaluation.contratoFlags.parties.map( (party) => {
@@ -84,9 +84,7 @@ const db = monk(url)
             console.log('No contracts seen.');
             process.exit(0);
         }
-        process.stdout.write( JSON.stringify(partyFlagCollection) );
-        process.stdout.write( JSON.stringify(partyFlagIndex) );
-        process.exit(1);
+        // process.exit(1);
         // -----------------------------------------------------------------------------------------
         // -----------------------------------------------------------------------------------------
 
@@ -182,9 +180,9 @@ const db = monk(url)
                             }
                         }).catch(e => { console.log('PROMISE ERROR', e) }); // END CONTRACT PROMISES
                     }
-        //         }
-        //     }).catch(e => { console.log('PROMISE ERROR', e) }); // END PARTY PROMISES
-        // }
+                }
+            }).catch(e => { console.log('PROMISE ERROR', e) }); // END PARTY PROMISES
+        }
 
         console.log('End streaming.');
     } );
