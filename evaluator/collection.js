@@ -1,8 +1,10 @@
+const hash = require('object-hash');
+
 function createFlagCollectionObject(flags) {
     let flagCollObj = {
         id: '',
         name: '',
-        type: '', // Valores: contract, party
+        type: '', // Values: contract, party
         entity: '',
         flags: {}
     };
@@ -18,64 +20,63 @@ function createFlagCollectionObject(flags) {
     return flagCollObj;
 }
 
-function findObjectInCollection(id, flagIndex) {
-    for(let i=flagIndex.length; i>=0; i--) {
-        if(flagIndex[i] == id) return i;
+function findObjectInCollection(id, collection) {
+    if( collection[id] ) {
+        return collection[id];
     }
-    return -1;
-    // return flagIndex.indexOf(id);
-    // return collection.filter( function(item) { return item.id == id } )[0];
+    else {
+        return -1;
+    }
 }
 
-function updateFlagCollection(party, collection, flagIndex, year, flags) {
-    let objIndex = findObjectInCollection(party.id, flagIndex);
-    let obj = null;
+function updateFlagCollection(party, collection, year, flags) {
+    let obj = findObjectInCollection(party.id, collection);
 
-    if(objIndex == -1) {
-        // No existe el party todavía...
+    if(obj == -1) { // Party hasn't been seen yet
         let newObj = {};
+
         newObj.id = party.id;
         newObj.name = party.name;
         newObj.type = 'party';
         newObj.entity = party.entity;
+
         if(party.hasOwnProperty('parent')) {
             newObj.parent = party.parent;
         }
+
         newObj.flags = JSON.parse(JSON.stringify(flags));
         newObj.contract_count = [];
         newObj.contract_count.push({ year: year, count: 1 });
 
-        collection.push(newObj);
-        flagIndex.push(party.id);
+        collection[party.id] = newObj;
     }
     else {
-        obj = collection[objIndex];
         if(obj.contract_count.filter( function(item) { return item.year == year } ).length == 0)
         {
-            // El party no tiene contratos para el año todavía...
+            // Contracts for this party and this year have not been seen yet
             obj.contract_count.push({ year: year, count: 1 });
 
-            // Iteramos por categoría y luego por flag
+            // Iterate over flag categories and then flags
             Object.keys(flags).map( function(key, index) {
                 Object.keys(flags[key]).map( function(subkey, subindex) {
-                    // Obtenemos el score para el flag del año del contrato que estamos evaluando
+                    // Get flag score for current flag in current contract year
                     var year_flag = flags[key][subkey].filter( function(item) { return item.year == year } )[0];
                     obj.flags[key][subkey].push( { year: year, score: year_flag.score } );
                 } );
             } );
         }
         else {
-            // El party ya tiene contratos para ese año
+            // Party has contracts in this year already
             Object.keys(flags).map( function(key, index) {
                 Object.keys(flags[key]).map( function(subkey, subindex) {
-                    // Primero obtenemos el valor que hay que incorporar al promedio actual
+                    // Get value to be averaged with current average
                     var new_value = flags[key][subkey].filter( function(item) { return item.year == year } )[0].score;
-                    // Luego obtenemos el promedio actual
+                    // Get current average
                     var old_value = obj.flags[key][subkey].filter( function(item) { return item.year == year } )[0].score;
-                    // Después obtenemos el contract_count para ese año
+                    // Get contract_count for current year
                     var contract_count = obj.contract_count.filter( function(item) { return item.year == year } )[0].count;
 
-                    // Y ahora, aplicamos la fórmula mágica!
+                    // Y ahora, aplicamos la fórmula mágica! (Kept in Spanish for now)
                     //      new_score = ( (old_value * contract_count) + new_value ) / (contract_count + 1)
                     // Para mantener el promedio, multiplicamos la cantidad de contratos promediados por el valor promedio
                     // y luego sumamos el nuevo valor al promedio expandido, para finalmente dividir por la cantidad
@@ -88,7 +89,7 @@ function updateFlagCollection(party, collection, flagIndex, year, flags) {
                 } );
             } );
 
-            // No nos olvidemos de aumentar el contract_count cuando terminemos de procesar el contrato
+            // Don't forget: increase contract_count after contract has been processed
             obj.contract_count.map( (item) => {
                 if(item.year == year) item.count += 1;
                 return item;
@@ -99,25 +100,28 @@ function updateFlagCollection(party, collection, flagIndex, year, flags) {
 
 function getContractCriteriaSummary(collection, criteriaObj) {
     let summary = [];
+    let tempCriteriaObj = JSON.stringify(criteriaObj);
 
-    collection.map( (item) => {
+    collection.map( (evaluation) => {
+        let item = evaluation.contratoFlags;
         let contractFlagObj = {
+            id: item.id,
             ocid: item.ocid,
             date_signed: item.hasOwnProperty('date_signed')? item.date_signed : null,
-            source: item.source,
-            parties: item.parties
+            parties: item.parties,
+            value: item.value
         };
-        let criteria_score = JSON.parse(JSON.stringify(criteriaObj));
+        let criteria_score = JSON.parse(tempCriteriaObj);
 
         Object.assign(contractFlagObj, { criteria_score });
         Object.assign(contractFlagObj, { rules_score: {} });
 
-        // Iterar sobre categorias
+        // Iterate flag categories
         Object.keys(item.flags).map( function(categoria, index) {
             var flagCount = 0;
             contractFlagObj.rules_score[categoria] = {};
 
-            // Iterar sobre banderas
+            // Iterate flags
             Object.keys(item.flags[categoria]).map( function(bandera, subindex) {
                 contractFlagObj.rules_score[categoria][bandera] = item.flags[categoria][bandera][0].score;
                 contractFlagObj.criteria_score[categoria] += item.flags[categoria][bandera][0].score;
@@ -127,7 +131,7 @@ function getContractCriteriaSummary(collection, criteriaObj) {
             contractFlagObj.criteria_score[categoria] /= flagCount;
         } );
 
-        // calcular total_score global
+        // Calculate the global total_score
         var global_total = 0;
         var num_categorias = 0;
         Object.keys(contractFlagObj.criteria_score).map( function(cat, index) {
@@ -146,6 +150,7 @@ function getContractCriteriaSummary(collection, criteriaObj) {
 
 function getPartyCriteriaSummary(collection, criteriaObj) {
     let summary = [];
+    let tempCriteriaObj = JSON.stringify(criteriaObj);
 
     collection.map( (item) => {
         let party = {
@@ -158,7 +163,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             Object.assign( party, { parent: item.parent } )
         }
 
-        let criteria_score = JSON.parse(JSON.stringify(criteriaObj));
+        let criteria_score = JSON.parse(tempCriteriaObj);
         let years = [];
         let partyFlagObj = {
             party,
@@ -166,18 +171,18 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             years
         };
 
-        // Iterar sobre categorias
+        // Iterate categories
         Object.keys(item.flags).map( function(categoria, index) {
             var flagCount = 0;
 
-            // Iterar sobre banderas
+            // Iterate flags
             Object.keys(item.flags[categoria]).map( function(bandera, subindex) {
-                // Iterar los años para los que haya score en la bandera
+                // Iterate years with a score for the flag
                 item.flags[categoria][bandera].map( (score) => {
                     if( partyFlagObj.years.filter( (yearObj) => { return yearObj.year == score.year } ).length == 0 ) {
                         let criteriaYearObj = {
                             year: score.year,
-                            criteria_score: JSON.parse(JSON.stringify(criteriaObj))
+                            criteria_score: JSON.parse(tempCriteriaObj)
                         }
                         partyFlagObj.years.push(criteriaYearObj);
                     }
@@ -191,7 +196,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
                 flagCount++;
             } );
 
-            // Calcular promedios de la categoria por año
+            // Calculate averages for this category and this year
             partyFlagObj.years.map( (yearObj) => {
                 yearObj.criteria_score[categoria] /= flagCount;
                 partyFlagObj.criteria_score[categoria] += yearObj.criteria_score[categoria];
@@ -200,7 +205,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             partyFlagObj.criteria_score[categoria] /= partyFlagObj.years.length;
         } );
 
-        // calcular total_scores por año
+        // Calculate total_scores per year
         partyFlagObj.years.map( (yearObj) => {
             var year_total = 0;
             var num_categorias = 0;
@@ -213,7 +218,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             yearObj.criteria_score.total_score = year_total / num_categorias;
         } )
 
-        // calcular total_score global
+        // Calculate global total_score
         var global_total = 0;
         var num_categorias = 0;
         Object.keys(partyFlagObj.criteria_score).map( function(cat, index) {
@@ -230,24 +235,18 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
     return summary;
 }
 
-function sendContractCollectionToDB(flagCollection, dbCollection) {
+// Receives a chunk of an object collection, adds a hash to ensure uniqueness of id, and inserts in bulk to DB
+// Array flagCollection: the chunk of objects to send to DB
+// Object dbCollection: the DB collection object that the chunk is sent to
+function sendCollectionToDB(flagCollection, dbCollection) {
     const operations = [];
 
-    flagCollection.map( (flag) => operations.push( { insertOne: { document: flag } } ) );
-
-    return dbCollection.bulkWrite(operations, { ordered:true }, function(err, r) {
-        if(err) console.log('ERROR', err);
+    flagCollection.map( (flag) => {
+        let flagHash = hash(flag);
+        Object.assign(flag, { _id: flagHash });
+        operations.push( { insertOne: { document: flag } } );
     } );
-}
-
-function sendPartyCollectionToDB(flagCollection, dbCollection) {
-    const operations = [];
-
-    flagCollection.map( (flag) => operations.push( { updateOne: { filter: { 'party.id': flag.party.id }, update: { $set: {party: flag.party, criteria_score:flag.criteria_score}, $push: {years: flag.years[0]} }, upsert: true } } ) );
-
-    return dbCollection.bulkWrite(operations, { ordered:true }, function(err, r) {
-        if(err) console.log('ERROR', err);
-    } );
+    return dbCollection.bulkWrite(operations, { ordered:true });
 }
 
 module.exports = {
@@ -255,6 +254,5 @@ module.exports = {
     updateFlagCollection,
     getPartyCriteriaSummary,
     getContractCriteriaSummary,
-    sendPartyCollectionToDB,
-    sendContractCollectionToDB
+    sendCollectionToDB
 };

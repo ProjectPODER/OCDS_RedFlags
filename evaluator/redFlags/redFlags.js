@@ -31,26 +31,26 @@ function isDate(d) {
 }
 
 // Parameters:
-//      field: string separado por . del campo a buscar
-//      tempObj: el contrato en el que se buscan los campos
+//      field: name of the field as a string separated by "."
+//      tempObj: the object in which the fields should be found
 // Return:
-//      Array con el contenido del campo, o array vacío si no encontró el campo
+//      Array: the contents of the field, or empty array if the field was not found
 function fieldPathExists(field, tempObj) {
     var fieldValues = [];
     var fieldPath = field.split('.');
 
-    // Iterar sobre array con los componentes del campo
+    // Iterate over array with the components of the field
     for(var i=0; i<fieldPath.length; i++) {
-        // Si el campo NO existe en el contrato
+        // Field does NOT exist in object
         if( typeof tempObj[fieldPath[i]] == 'undefined' ) {
             return fieldValues;
         }
-        // Si el campo es null
+        // Field has a value of null
         if(tempObj[fieldPath[i]] == null) {
             return fieldValues;
         }
 
-        // Si el campo es un array
+        // Field is an array
         if( isArray(tempObj[fieldPath[i]]) ) {
             if(i == fieldPath.length - 1) { // Estamos chequeando si existe el array, no su valor
                 fieldValues.push(tempObj[fieldPath[i]]);
@@ -64,33 +64,33 @@ function fieldPathExists(field, tempObj) {
             return fieldValues;
         }
 
-        // Si el valor del campo es un string o un número
+        // Value of the field is a string or number
         else if( isString(tempObj[fieldPath[i]]) || isNumeric(tempObj[fieldPath[i]]) ) {
-            if(i < fieldPath.length - 1) { // Llegó a un string o número pero no ha llegado al final del path
+            if(i < fieldPath.length - 1) { // Arrived at a string or number while end of path has not been reached
                 return fieldValues;
             }
-            if(tempObj[fieldPath[i]] == '' || tempObj[fieldPath[i]] == '---' || tempObj[fieldPath[i]] == 'null') { // Llegó a string vacío, '---' o 'null'
+            if(tempObj[fieldPath[i]] == '' || tempObj[fieldPath[i]] == '---' || tempObj[fieldPath[i]] == 'null') { // Arrived at empty string, '---' or 'null'
                 return fieldValues;
             }
             fieldValues.push( tempObj[fieldPath[i]] );
             return fieldValues;
         }
 
-        // Si el valor del campo es una fecha
+        // Value of the field is a date
         else if( isDate(tempObj[fieldPath[i]]) ) {
-            if(i < fieldPath.length - 1) { // Si llegó a un date pero no ha llegado al final del path
+            if(i < fieldPath.length - 1) { // Arrived at a date while end of path has not been reached
                 return fieldValues;
             }
             fieldValues.push(tempObj[fieldPath[i]].toISOString());
             return fieldValues;
         }
 
-        // Si fieldPath[i] es un objeto
+        // fieldPath[i] is an object
         else if( tempObj.hasOwnProperty(fieldPath[i]) && !isEmpty(tempObj[fieldPath[i]]) ) {
             tempObj = tempObj[fieldPath[i]];
         }
 
-        // Ninguna de las anteriores...
+        // None of the above...
         else {
             return fieldValues;
         }
@@ -115,13 +115,13 @@ function evaluateConditions(contract, conditions, fieldName) {
 
     Object.keys(conditions).map( (condition, index) => {
         switch(condition) {
-            case 'or': // Chequear si alguno de los campos existe
+            case 'or': // Check if any of the fields exists
                 var or = conditions[condition].filter( (item) => {
                     var fieldvalue = fieldPathExists(item, contract);
                     return (fieldvalue.length > 0)? true : false;
                 } );
 
-                if(or.length > 0) { // Si se cumple alguna de las condiciones en el OR
+                if(or.length > 0) { // Check the conditions inside the OR
                     fieldExists = fieldExists.concat(fieldPathExists(fieldName, contract));
                 }
             default:
@@ -129,9 +129,9 @@ function evaluateConditions(contract, conditions, fieldName) {
                 var conditionValue = conditions[conditionField];
                 var foundValue = fieldPathExists( conditionField, contract );
 
-                if(foundValue.length > 0) { // Hay al menos un resultado para el campo de la condición
+                if(foundValue.length > 0) { // There is at least one result for the field in the condition
                     foundValue.map( (result) => {
-                        // Comparar los resultados obtenidos del contrato con el valor esperado de la condición
+                        // Commpare results obtained with expected value of the condition
                         if(result == conditionValue) {
                             fieldExists = fieldExists.concat( fieldPathExists(fieldName, contract) );
                         }
@@ -162,7 +162,7 @@ function evaluateDateCondition(contract, conditionType, condition, daysDifferenc
                         }
                     }
                 }
-                else { // Si tiene un OR
+                else { // There is an OR
                     condition.conditions[field].or.map( (orValue) => {
                         if(orValue == value) {
                             switch(conditionType) {

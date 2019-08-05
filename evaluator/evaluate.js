@@ -117,11 +117,12 @@ function getContractsFromRecord(record) {
 function evaluateFlags(record, flags, flagCollectionObj) {
     let contracts = getContractsFromRecord(record);
     let results = [];
+    let tempFlags = JSON.stringify(flagCollectionObj);
 
     // Iterate over all contracts in the document, creating a separate evaluation for each...
     contracts.map( (contract) => {
         let year = getContractYear(contract);
-        let contratoFlags = JSON.parse(JSON.stringify(flagCollectionObj));
+        let contratoFlags = JSON.parse(tempFlags);
         contratoFlags.type = 'contract';
 
         delete contratoFlags.name;
@@ -133,9 +134,6 @@ function evaluateFlags(record, flags, flagCollectionObj) {
 
         if( contract.contracts[0].hasOwnProperty('period') ) {
             Object.assign(contratoFlags, { date_signed: contract.contracts[0].period.startDate });
-        }
-        if( contract.hasOwnProperty('source') ) {
-            Object.assign(contratoFlags, { source: contract.source });
         }
 
         let contratoParties = [];
@@ -172,9 +170,9 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                 }
             }
 
-            // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
+            // From the party with a role of "buyer" (Unidad Compradora) we extract its parent (Dependencia) and the state or municipality it belongs to
             if(role == 'buyer') {
-                // Sacamos la dependencia del parent
+                // Get the parent (Dependencia)
                 if ( party.hasOwnProperty('memberOf') ) {
                   var dependencyObj = {
                     id: party.memberOf[0].id,
@@ -186,7 +184,8 @@ function evaluateFlags(record, flags, flagCollectionObj) {
 
                 Object.assign( partyObj, { parent: { id: party.memberOf[0].id, name: party.memberOf[0].name } } );
 
-                // Sacamos estado si el govLevel es "region", si es "city" sacamos municipio y estado también
+                // If the govLevel is "region", extract the state
+                // If the govLevel is "city", extract the municipality and the state
                 switch(party.govLevel) {
                     case 'region':
                         var stateObj = {
@@ -206,7 +205,7 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                         contratoParties.push(cityObj);
                         break;
                     case 'country':
-                        // No se hace nada a nivel de país...
+                        // Nothing to be done at country level...
                         break;
                 }
             }
@@ -215,13 +214,13 @@ function evaluateFlags(record, flags, flagCollectionObj) {
             }
         } );
 
-        // Iterar sobre las reglas
+        // Iterate flags
         flags.map( (flag) => {
             let flagScore = getFlagScore(contract, flag);
             contratoFlags.flags[flag.categoryID][flag.id].push({ year: year, score: flagScore });
         } );
 
-        // Agregar los parties al contrato
+        // Add parties to this contract
         Object.assign(contratoFlags, { parties: contratoParties });
 
         results.push( { contratoFlags, year } );

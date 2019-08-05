@@ -1,264 +1,219 @@
 [
-  {
-    "category": "Transparencia",
-    "name": "OCDS válido",
-    "type": "check-schema-bool"
-  },
-  {
-    "category": "Transparencia",
-    "name": "Secciones completas",
-    "type": "check-sections-bool",
-    "fields": [
-      "parties",
-      "buyer",
-      "tender",
-      "awards",
-      "planning",
-      "contracts"
-    ]
-  },
-  {
-    "category": "Temporalidad",
-    "name": "Campos fundamentales para la temporalidad",
-    "type": "check-fields-bool",
-    "fields": [
-      "awards.date",
-      "tender.tenderPeriod.endDate",
-      "tender.tenderPeriod.startDate",
-      "date",
-      "contracts.period.startDate"
-    ]
-  },
-  {
-    "category": "Temporalidad",
-    "name": "Tiempo insuficiente de preparación de oferta",
-    "type": "date-difference-bool",
-    "difference":{
-      "minimum": [
-        {
-          "conditions": {
-            "parties.address.countryName": "Mexico",
-            "tender.procurementMethodCharacterMxCnet": {
-              "or": [
-                "Nacional",
-                "undefined"
-              ]
-            }
-          },
-          "value": 15
-        },
-        {
-          "conditions": {
-            "parties.address.countryName": "Mexico",
-            "tender.procurementMethodCharacterMxCnet": "Internacional"
-          },
-          "value": 20
-        }
-      ]
+    {
+        "id": "trans-ov",
+        "category": "Transparencia",
+        "name": "OCDS válido",
+        "type": "check-schema-bool"
     },
-    "fields":{
-      "from":"tender.tenderPeriod.startDate",
-      "to": "tender.tenderPeriod.endDate"
-      }
-  },
-  {
-    "category": "Temporalidad",
-    "name": "Duraciones larga",
-    "type": "date-difference-bool",
-    "difference":{
-      "maximum": 1000
-    },
-    "fields":{
-      "from":"contracts.period.startDate",
-      "to": "contracts.period.endDate"
-    }
-  },
-  {
-    "category": "Competitividad",
-    "name": "campos fundamentales para la competitividad",
-    "type": "check-fields-bool",
-    "fields": [
-      {
-          "value":"parties.name",
-          "conditions": {
-            "parties.roles": "supplier"
-          }
-      },
-      "tender.procurementMethod"
-    ]
-  },
-  {
-    "category": "Competitividad",
-    "name": "Paraísos fiscales",
-    "type": "check-field-value-bool",
-    "fields": ["parties.address.countryName"],
-    "values": [
-        "AD",
-        "AI",
-        "AG",
-        "AW",
-        "BS",
-        "BH",
-        "BB",
-        "BZ",
-        "BM",
-        "BO",
-        "BW",
-        "VG",
-        "BN",
-        "KY",
-        "CL",
-        "CN",
-        "CK",
-        "CR",
-        "CW",
-        "CY",
-        "DM",
-        "DO",
-        "GM",
-        "GH",
-        "GI",
-        "GD",
-        "GT",
-        "GG",
-        "HK",
-        "IS",
-        "IM",
-        "IL",
-        "ID",
-        "JP",
-        "KE",
-        "JE",
-        "LB",
-        "LR",
-        "LI",
-        "MO",
-        "MK",
-        "MY",
-        "MV",
-        "MT",
-        "MH",
-        "MU",
-        "MC",
-        "ME",
-        "MS",
-        "NR",
-        "NL",
-        "PA",
-        "PY",
-        "PH",
-        "PR",
-        "RO",
-        "RU",
-        "WS",
-        "SM",
-        "SA",
-        "SC",
-        "SG",
-        "KN",
-        "LC",
-        "VC",
-        "CH",
-        "TZ",
-        "TW",
-        "TH",
-        "TT",
-        "TR",
-        "TC",
-        "UA",
-        "UY",
-        "AE",
-        "VI",
-        "US",
-        "VU",
-        "VE"
-    ]
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Escala inconsistente",
-    "type": "field-equality-bool",
-    "fields": [
-      "parties.details.scaleReportedByBuyerMxCnet", "parties.details.scaleReportedBySupplierMxCnet"
-    ]
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "campos fundamentales para la trazabilidad",
-    "type": "check-fields-bool",
-    "fields": [
-      "planning.budget",
-      {
-        "value": "parties.name",
-        "conditions": {
-          "parties.roles": "supplier"
-        }
-      },
-      {
-        "value": "parties.name",
-        "conditions": {
-          "parties.role": "buyer"
-        }
-      }
-    ]
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Modificaciones al contrato",
-    "fields": ["contracts.amendments"],
-    "type": "check-fields-inverse"
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Información de las partes",
-    "fields": [{
-      "value":"parties.contactPoint.name",
-      "conditions": {
-        "or": [
-          "parties.contactPoint.email",
-          "parties.contactPoint.telephone",
-          "parties.contactPoint.faxNumber",
-          "parties.contactPoint.url"
+    {
+        "id": "trans-sc",
+        "category": "Transparencia",
+        "name": "Secciones completas",
+        "type": "check-sections-bool",
+        "fields": [
+            "parties",
+            "buyer",
+            "tender",
+            "awards",
+            "planning",
+            "contracts"
         ]
+    },
+    {
+        "id": "temp-cft",
+        "category": "Temporalidad",
+        "name": "Campos fundamentales para la temporalidad",
+        "type": "check-fields-bool",
+        "fields": [
+            "awards.date",
+            "tender.tenderPeriod.endDate",
+            "tender.tenderPeriod.startDate",
+            "date",
+            "contracts.period.startDate"
+        ]
+    },
+    {
+        "id": "temp-tipo",
+        "category": "Temporalidad",
+        "name": "Tiempo insuficiente de preparación de oferta",
+        "type": "date-difference-bool",
+        "difference":{
+            "minimum": [
+                {
+                    "conditions": {
+                        "parties.address.countryName": "Mexico",
+                        "tender.procurementMethodCharacterMxCnet": {
+                            "or": [
+                                "Nacional",
+                                "undefined"
+                            ]
+                        }
+                    },
+                    "value": 15
+                },
+                {
+                    "conditions": {
+                        "parties.address.countryName": "Mexico",
+                        "tender.procurementMethodCharacterMxCnet": "Internacional"
+                    },
+                    "value": 20
+                }
+            ]
+        },
+        "fields":{
+            "from":"tender.tenderPeriod.startDate",
+            "to": "tender.tenderPeriod.endDate"
         }
-      }],
-    "type": "check-fields-bool"
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Proveedor fantasma",
-    "fields": [{
-        "value": "parties.identifier.id",
-        "conditions": {
-          "parties.roles": "supplier"
+    },
+    {
+        "id": "temp-dl",
+        "category": "Temporalidad",
+        "name": "Duraciones larga",
+        "type": "date-difference-bool",
+        "difference":{
+            "maximum": 1000
+        },
+        "fields":{
+            "from":"contracts.period.startDate",
+            "to": "contracts.period.endDate"
         }
-    }],
-    "type": "check-fields-bool"
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Importe redondeado",
-    "fields": [
-      {
-        "value":"contracts.value.amount",
-        "operation": {
-        "substr":[-5]
-        }
-      }
-    ],
-    "values":["00000"],
-    "type": "check-field-value-bool"
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Comprensión del título",
-    "fields": ["contracts.title", "awards.title", "tender.title"],
-    "type": "comprensibility"
-  },
-  {
-    "category": "Trazabilidad",
-    "name": "Falta de referencia oficial",
-    "fields": "source",
-    "type": "check-url-bool"
-  }
+    },
+    {
+        "id": "comp-cfc",
+        "category": "Competitividad",
+        "name": "campos fundamentales para la competitividad",
+        "type": "check-fields-bool",
+        "fields": [
+            {
+                "value":"parties.name",
+                "conditions": {
+                    "parties.roles": "supplier"
+                }
+            },
+            "tender.procurementMethod"
+        ]
+    },
+    {
+        "id": "comp-pf",
+        "category": "Competitividad",
+        "name": "Paraísos fiscales",
+        "type": "check-field-value-bool",
+        "fields": ["parties.address.countryName"],
+        "values": [
+            "AD", "AI", "AG", "AW", "AE",
+            "BS", "BH", "BB", "BZ", "BM", "BO", "BW", "BN",
+            "CL", "CN", "CK", "CR", "CW", "CY", "CH",
+            "DM", "DO",
+            "GM", "GH", "GI", "GD", "GT", "GG",
+            "HK",
+            "IS", "IM", "IL", "ID",
+            "JP", "JE",
+            "KY", "KE", "KN",
+            "LB", "LR", "LI", "LC",
+            "MO", "MK", "MY", "MV", "MT", "MH", "MU", "MC", "ME", "MS",
+            "NR", "NL",
+            "PA", "PY", "PH", "PR",
+            "RO", "RU",
+            "SM", "SA", "SC", "SG",
+            "TZ", "TW", "TH", "TT", "TR", "TC",
+            "UA", "UY", "US",
+            "VU", "VE", "VI", "VC", "VG",
+            "WS"
+        ]
+    },
+    {
+        "id": "traz-ei",
+        "category": "Trazabilidad",
+        "name": "Escala inconsistente",
+        "type": "field-equality-bool",
+        "fields": [
+            "parties.details.scaleReportedByBuyerMxCnet", "parties.details.scaleReportedBySupplierMxCnet"
+        ]
+    },
+    {
+        "id": "traz-cft",
+        "category": "Trazabilidad",
+        "name": "campos fundamentales para la trazabilidad",
+        "type": "check-fields-bool",
+        "fields": [
+            "planning.budget",
+            {
+                "value": "parties.name",
+                "conditions": {
+                    "parties.roles": "supplier"
+                }
+            },
+            {
+                "value": "parties.name",
+                "conditions": {
+                    "parties.role": "buyer"
+                }
+            }
+        ]
+    },
+    {
+        "id": "traz-mc",
+        "category": "Trazabilidad",
+        "name": "Modificaciones al contrato",
+        "fields": ["contracts.amendments"],
+        "type": "check-fields-inverse"
+    },
+    {
+        "id": "traz-ip",
+        "category": "Trazabilidad",
+        "name": "Información de las partes",
+        "fields": [{
+            "value":"parties.contactPoint.name",
+            "conditions": {
+                "or": [
+                    "parties.contactPoint.email",
+                    "parties.contactPoint.telephone",
+                    "parties.contactPoint.faxNumber",
+                    "parties.contactPoint.url"
+                ]
+            }
+        }],
+        "type": "check-fields-bool"
+    },
+    {
+        "id": "traz-pf",
+        "category": "Trazabilidad",
+        "name": "Proveedor fantasma",
+        "fields": [{
+            "value": "parties.identifier.id",
+            "conditions": {
+                "parties.roles": "supplier"
+            }
+        }],
+        "type": "check-fields-bool"
+    },
+    {
+        "id": "traz-ir",
+        "category": "Trazabilidad",
+        "name": "Importe redondeado",
+        "fields": [
+            {
+                "value":"contracts.value.amount",
+                "operation": {
+                    "substr":[-5]
+                }
+            }
+        ],
+        "values":["00000"],
+        "type": "check-field-value-bool"
+    },
+    {
+        "id": "traz-ct",
+        "category": "Trazabilidad",
+        "name": "Comprensión del título",
+        "fields": ["contracts.title", "awards.title", "tender.title"],
+        "type": "comprensibility"
+    },
+    {
+        "id": "traz-fro",
+        "category": "Trazabilidad",
+        "name": "Falta de referencia oficial",
+        "fields": "source",
+        "type": "check-url-bool"
+    }
 ]

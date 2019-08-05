@@ -8,15 +8,15 @@ const {
     updateFlagCollection,
     getPartyCriteriaSummary,
     getContractCriteriaSummary,
-    sendPartyCollectionToDB,
-    sendContractCollectionToDB
+    sendCollectionToDB
 } = require('./evaluator/collection');
 
 const optionDefinitions = [
     { name: 'database', alias: 'd', type: String },
     { name: 'collection', alias: 'c', type: String },
-    { name: 'flags', alias: 'f', type: String },
-    { name: 'test', alias: 't', type: String }
+    { name: 'flags', alias: 'f', type: String }, // Name of file containing flag definitions (should always be placed in root folder)
+    { name: 'test', alias: 't', type: String }, // Test with one ocid
+    { name: 'limit', alias: 'l', type: Number } // Test with n=limit records
 ];
 const args = commandLineArgs(optionDefinitions);
 
@@ -25,33 +25,48 @@ if(!args.database || !args.collection || !args.flags) {
     process.exit(1);
 }
 
-let seenContracts = 0;
-const flags = parseFlags(args.flags); // Add a syntax check to the flags definition. Should output warnings for rules with errors.
+let seenRecords = 0;            // Counter for records read from DB
+let seenContracts = 0;          // Counter for contracts extracted from records
+let sentContracts = 0;          // Counter for contracts sent to DB
+let contractEvaluations = [];
+let contractPromises = [];
+let partyPromises = [];
+const chunkSize = 10000;                // How many documents will be sent to DB at once
+const flags = parseFlags(args.flags);   // TODO: Add a syntax check to the flags definition. Should output warnings for rules with errors.
 const flagCollectionObj = createFlagCollectionObject(flags);
-const contractFlagCollection = [];
 const partyFlagCollection = [];
-const partyFlagIndex = [];
+const flagCriteriaObj = getCriteriaObject(flags);
 
 let query = {};
-if(args.test) {
+if(args.test) { // Use the -t flag to test a single record by ocid
     query = { 'records.0.ocid': args.test }
 }
 
-// Connection URL
 const url = 'mongodb://localhost:27017/' + args.database;
 const db = monk(url)
 .then( (db) => {
-    // console.log('Connected to ' + args.database + '...');
+    console.log('Connected to ' + args.database + '...');
     console.time('duration');
 
-    const records = db.get(args.collection, { castIds: false });
+    const records = db.get(args.collection, { castIds: false });    // Collection to read records from
+    const c_flags = db.get('contract_flags', { castIds: false });   // Collection to store contract_flags in
+    const p_flags = db.get('party_flags', { castIds: false });      // Collection to store party_flags in
 
-    // console.log('Streaming records...');
+    console.log('Streaming records...');
 
-    records.find( query, { limit: 10000 } )
-    .each( (record, {close, pause, resume}) => {
-        seenContracts++;
+    let globalCount = 0;
+    if(args.test) // Test one record with the -t flag
+        globalCount = 1;
+    else if(args.limit) // Uses the -l flag to test only the first n=args.limit records
+        globalCount = args.limit;
+    else // Normal operation
+        records.count( query , (error, count) => { globalCount = count } );
+
+    records.find( query, { limit: globalCount } )
+    .each( (record, {close, pause, resume}) => { // Process each record found with query
+        seenRecords++;
         let contract = null;
+        let evaluations = null;
 
         // Check if we are working with records or releases
         if( record.hasOwnProperty('records') ) {
@@ -63,27 +78,63 @@ const db = monk(url)
         else contract = record;
 
         if( isValidContract(contract) ) {
-            // console.log(seenContracts, contract.ocid);
-            // Perform evaluation of the document
-            let evaluations = evaluateFlags(contract, flags, flagCollectionObj);
-
+            evaluations = evaluateFlags(contract, flags, flagCollectionObj); // Perform evaluation of the document
+            seenContracts += evaluations.length;
             evaluations.map( (evaluation) => {
-                contractFlagCollection.push(evaluation.contratoFlags);
-                // Assign contractScore values to all the parties involved
-                evaluation.contratoFlags.parties.map( (party) => {
-                    updateFlagCollection(party, partyFlagCollection, partyFlagIndex, evaluation.year, evaluation.contratoFlags.flags);
+                evaluation.contratoFlags.parties.map( (party) => { // Assign contractScore values to all the parties involved
+                    updateFlagCollection(party, partyFlagCollection, evaluation.year, evaluation.contratoFlags.flags);
                 } );
             } );
+            contractEvaluations = contractEvaluations.concat(getContractCriteriaSummary(evaluations, flagCriteriaObj));
         }
+        // Cleanup...
         record = null;
         contract = null;
-    } )
-    .then( () => {
-        if(seenContracts == 0) {
-            console.log('No contracts seen.');
-            process.exit(0);
+        evaluations = null;
+
+        // Have we collected 10 thousand documents yet? Has the last record been processed?
+        if(seenContracts - sentContracts >= chunkSize || seenRecords == globalCount) {
+            pause(); // Stop reading contracts for the time being
+
+            // Insert CONTRACT_FLAGS to DB:
+            // Split into n=chunkSize chunks
+            // Convert flagCollection structure to DB structure
+            // Send chunks to DB for insertion
+            contractPromises.push(sendCollectionToDB(contractEvaluations, c_flags));
+            sentContracts = seenContracts;
+            contractEvaluations = [];
+
+            resume(); // Continue reading contracts
         }
-        // process.exit(1);
+
+        // We have reached the end of the collection, send the last chunk to DB
+        if(globalCount == seenRecords) {
+            console.log('End streaming. Waiting for inserts...');
+            pause(); // Pause until promises are resolved
+
+            // Wait for all promises to be resolved, which means all contract_flags have been sent to DB
+            Promise.all(contractPromises).then( (results) => {
+                console.log('Insertion complete.');
+                console.log('Seen contracts:', seenContracts);
+
+                let inserted = 0;
+                results.map( (result) => { // Process result for each chunk sent
+                    let json = result.toJSON();
+                    inserted += json.nInserted;
+                } )
+
+                console.log('Inserted', inserted);
+
+                // Cleanup...
+                contractPromises = null;
+                results = null;
+
+                resume(); // Promises complete, continue with the next step
+            } )
+            .catch( (err) => { console.log('ERROR', err) } );
+        }
+    } )
+    .then( () => { // All contracts have been evaluated and processed, proceed to process all parties
         // -----------------------------------------------------------------------------------------
         // -----------------------------------------------------------------------------------------
 
@@ -92,98 +143,48 @@ const db = monk(url)
         // -----------------------------------------------------------------------------------------
         // -----------------------------------------------------------------------------------------
 
-        // Insertar PARTY_FLAGS a la DB:
-        // Dividir el array en chunks de 10000, para cada chunk se convierte la data en el objeto para
-        // la DB, luego se envía el listado de objetos para insert/update en la DB
-        const chunkSize = 10000;
-        var numChunks = 0;
-        var upsertedChunks = 0;
-        var totalModified = 0;
-        var totalUpserted = 0;
+        console.log('Processing parties.');
+        const arrayLength = Object.keys(partyFlagCollection).length; // How many parties have we seen?
+        let criteriaObj = getCriteriaObject(flags);
 
-        var arrayLength = partyFlagCollection.length;
-        var expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
-        var criteriaObj = getCriteriaObject(flags);
-        var dbCollection = db.get('party_flags', { castIds: false });
+        // Insert PARTY_FLAGS to DB:
+        // Split into n=chunkSize chunks
+        // Convert flagCollection structure to DB structure
+        // Send chunks to DB for insertion
+        let parties = 0;
+        let partyChunk = [];
+        for(var partyID in partyFlagCollection) {
+            parties++;
+            partyChunk.push(partyFlagCollection[partyID]);
 
-        for(i = 0; i < arrayLength; i += chunkSize) {
-            numChunks++;
-            console.log('PARTIES Chunk ' + numChunks);
-
-            var partyChunk = partyFlagCollection.slice(i, i + chunkSize);
-            var party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
-
-            // Send chunk to DB...
-            var upsertPromises = sendPartyCollectionToDB(party_flags, dbCollection);
-            // console.log(JSON.stringify(party_flags, null, 4));
-            Promise.all([upsertPromises]).then((results) => {
-                upsertedChunks++;
-                console.log('---------------------------------------------------------------------------');
-                console.log('RESULT for chunk ' + upsertedChunks);
-                console.log('MODIFIED:', results[0].modifiedCount, 'UPSERTED:', results[0].upsertedCount);
-
-                totalModified += results[0].modifiedCount;
-                totalUpserted += results[0].upsertedCount;
-
-                if(upsertedChunks == expectedChunks) {
-                    console.log('---------------------------------------------------------------------------');
-                    console.log('PARTY_FLAGS: DONE!');
-                    console.log('MODIFIED:', totalModified, 'UPSERTED:', totalUpserted);
-                    console.log('---------------------------------------------------------------------------');
-
-                    // Insertar CONTRACT_FLAGS a la DB:
-                    // Dividir el array en chunks de 1000, para cada chunk se convierte la data en el objeto para
-                    // la DB, luego se envía el listado de objetos para insert/update en la DB
-                    numChunks = 0;
-                    upsertedChunks = 0;
-                    totalModified = 0;
-                    totalUpserted = 0;
-
-                    arrayLength = contractFlagCollection.length;
-                    expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
-                    criteriaObj = getCriteriaObject(flags);
-                    dbCollection = db.get('contract_flags', { castIds: false });
-
-                    for(i = 0; i < arrayLength; i += chunkSize) {
-                        numChunks++;
-                        console.log('CONTRACTS Chunk ' + numChunks);
-
-                        var contractChunk = contractFlagCollection.slice(i, i + chunkSize);
-                        var contract_flags = getContractCriteriaSummary(contractChunk, criteriaObj);
-
-                        // Send chunk to DB...
-                        var upsertPromises = sendContractCollectionToDB(contract_flags, dbCollection);
-                        // console.log(JSON.stringify(party_flags, null, 4));
-                        Promise.all([upsertPromises]).then((results) => {
-                            upsertedChunks++;
-
-                            console.log('---------------------------------------------------------------------------');
-                            console.log('RESULT for chunk ' + upsertedChunks);
-                            console.log('INSERTED:', results[0].nInserted);
-
-                            totalUpserted += results[0].nInserted;
-
-                            if(upsertedChunks == expectedChunks) {
-                                console.log('---------------------------------------------------------------------------');
-                                console.log('CONTRACT_FLAGS: DONE!');
-                                console.log('INSERTED:', totalUpserted);
-                                console.log('---------------------------------------------------------------------------');
-
-                                console.log(contractFlagCollection.length + ' contratos procesados.');
-                                console.log(partyFlagCollection.length + ' entidades procesadas.');
-                                console.timeEnd('duration');
-
-                                // ------------- THE END -------------
-                                process.exit(0);
-                                // ------------- THE END -------------
-                            }
-                        }).catch(e => { console.log('PROMISE ERROR', e) }); // END CONTRACT PROMISES
-                    }
-                }
-            }).catch(e => { console.log('PROMISE ERROR', e) }); // END PARTY PROMISES
+            if(parties % chunkSize == 0 || parties >= arrayLength) {
+                let party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
+                partyPromises.push(sendCollectionToDB(party_flags, p_flags));
+                partyChunk = [];
+            }
         }
 
-        console.log('End streaming.');
+        console.log('End processing. Waiting for inserts...');
+        // Wait for promises to be resolved, which means all parties have been sent to DB
+        Promise.all(partyPromises).then( (results) => {
+            console.log('Insertion complete.');
+            console.log('Seen parties:', parties);
+
+            let inserted = 0;
+            results.map( (result) => { // Process result for each chunk sent
+                let json = result.toJSON();
+                inserted += json.nInserted;
+            } )
+
+            console.log('Inserted', inserted);
+
+            // Cleanup...
+            partyPromises = null;
+            results = null;
+
+            process.exit(0); // All done!
+        } )
+        .catch( (err) => { console.log('ERROR', err) } );
     } );
 } )
 .catch( (err) => { console.log('Error connecting to ' + args.database, err) } );
