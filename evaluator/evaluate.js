@@ -1,5 +1,5 @@
 const {
-    checkAllFieldsFlag,
+    checkFieldsRateFlag,
     checkComprensibilityFlag,
     checkDatesFlag,
     checkFieldsComparisonFlag,
@@ -34,39 +34,28 @@ function getContractYear(contract) {
 
 function getFlagScore(contract, flag) {
     switch(flag.flagType) {
-        case 'check-all-fields-rate':
-            return checkAllFieldsFlag();
-            break;
+        case 'check-fields-rate':
+            return checkFieldsRateFlag(contract, flag.fields);
         case 'check-dates-bool':
             return checkDatesFlag();
-            break;
         case 'check-field-value-bool':
             return checkFieldsValueFlag(contract, flag.fields, flag.values);
-            break;
         case 'check-fields-bool':
             return checkFieldsFlag(contract, flag.fields);
-            break;
         case 'check-fields-inverse':
             return checkNotFieldsFlag(contract, flag.fields);
-            break;
         case 'check-schema-bool':
             return checkSchemaFlag();
-            break;
         case 'check-sections-bool':
             return checkSectionsFlag(contract, flag.fields);
-            break;
         case 'check-url-bool':
             return checkUrlFieldFlag(contract, flag.fields);
-            break;
         case 'comprensibility':
             return checkComprensibilityFlag(contract, flag.fields);
-            break;
         case 'date-difference-bool':
             return dateDifferenceFlag(contract, flag.fields, flag.difference);
-            break;
         case 'field-equality-bool':
             return checkFieldsComparisonFlag(contract, flag.fields);
-            break;
     }
 }
 
@@ -133,7 +122,7 @@ function evaluateFlags(record, flags, flagCollectionObj) {
         Object.assign(contratoFlags, { value: contract.contracts[0].value });
 
         if( contract.contracts[0].hasOwnProperty('period') ) {
-            Object.assign(contratoFlags, { date_signed: contract.contracts[0].period.startDate });
+            Object.assign(contratoFlags, { date_signed: new Date(contract.contracts[0].period.startDate) });
         }
 
         let contratoParties = [];

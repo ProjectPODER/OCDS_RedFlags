@@ -50,8 +50,7 @@ function fieldPathExists(field, tempObj) {
             return fieldValues;
         }
 
-        // Field is an array
-        if( isArray(tempObj[fieldPath[i]]) ) {
+        if( isArray(tempObj[fieldPath[i]]) ) { // Field is an array
             if(i == fieldPath.length - 1) { // Estamos chequeando si existe el array, no su valor
                 fieldValues.push(tempObj[fieldPath[i]]);
             }
@@ -63,9 +62,7 @@ function fieldPathExists(field, tempObj) {
             }
             return fieldValues;
         }
-
-        // Value of the field is a string or number
-        else if( isString(tempObj[fieldPath[i]]) || isNumeric(tempObj[fieldPath[i]]) ) {
+        else if( isString(tempObj[fieldPath[i]]) || isNumeric(tempObj[fieldPath[i]]) ) { // Value of the field is a string or number
             if(i < fieldPath.length - 1) { // Arrived at a string or number while end of path has not been reached
                 return fieldValues;
             }
@@ -75,23 +72,17 @@ function fieldPathExists(field, tempObj) {
             fieldValues.push( tempObj[fieldPath[i]] );
             return fieldValues;
         }
-
-        // Value of the field is a date
-        else if( isDate(tempObj[fieldPath[i]]) ) {
+        else if( isDate(tempObj[fieldPath[i]]) ) { // Value of the field is a date
             if(i < fieldPath.length - 1) { // Arrived at a date while end of path has not been reached
                 return fieldValues;
             }
             fieldValues.push(tempObj[fieldPath[i]].toISOString());
             return fieldValues;
         }
-
-        // fieldPath[i] is an object
-        else if( tempObj.hasOwnProperty(fieldPath[i]) && !isEmpty(tempObj[fieldPath[i]]) ) {
+        else if( tempObj.hasOwnProperty(fieldPath[i]) && !isEmpty(tempObj[fieldPath[i]]) ) { // fieldPath[i] is an object
             tempObj = tempObj[fieldPath[i]];
         }
-
-        // None of the above...
-        else {
+        else { // None of the above...
             return fieldValues;
         }
     }
@@ -186,18 +177,23 @@ function evaluateDateCondition(contract, conditionType, condition, daysDifferenc
 
 // ---------- FLAG FUNCTIONS ----------
 
-// Tipo: check-fields-bool
-// Descripción: verifica que los campos existan, tengan valor, y su valor no sea "---" o "null".
-// Parámetros:
-//      fields: array de nombres de campo a verificar
-function checkAllFieldsFlag() {
-    return 0.5;
+// Type: check-fields-rate
+// Description: verifies that fields exist, have a value, and the value is not "---" or "null".
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of field names to verify
+function checkFieldsRateFlag(contract, fields) {
+    let rate = checkFieldsFlag(contract, fields, true);
+    console.log('fieldss rate:', rate);
+    process.exit(1);
+    return rate;
 }
 
-// Tipo: comprensibility
-// Descripción: Aplica esta función: http://gitlab.rindecuentas.org/ivan/luigi_pipelines/blob/master/RedFlagsDocumentations.py#L263
-// Parámetros:
-//      fields: Array de campos a verificar.
+// Type: comprensibility
+// Description: applies a custom algorithm to evaluate the comprensibility of a field or fields
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of field names to verify
 function checkComprensibilityFlag(contract, fields) {
     var gibberish = false;
     fields.map( (field) => {
@@ -212,21 +208,24 @@ function checkComprensibilityFlag(contract, fields) {
     return gibberish ? 0 : 1;
 }
 
-// Tipo: check-dates-bool
-// Descripción: Evalúa si las fechas de fields coinciden con las fechas de date. Si es así da false.
-// Parámetros:
-//      contract: contrato a evaluar
-//      fields: Array de campos a verificar.
-//      dates: Array de fechas a verificar. TODO: Falta especificarlas mejor.
+// Type: check-dates-bool
+// Description: evaluates if the dates in a field or fields match any dates in the dates array, returns false if they do
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of field names to verify
+//      dates: array of dates to compare with
 function checkDatesFlag() {
+    // Chequear que exista el campo
+    // Chequear que el campo sea de tipo fecha
+    // Comparar con listado de fechas
     return 0.5;
 }
 
-// Tipo: field-equality-bool
-// Descripción: Compara el valor de dos campos, si son diferentes da false.
-// Parámetros:
-//      contract: contrato a evaluar
-//      fields: array de campos a comparar.
+// Type: field-equality-bool
+// Description: compares the value of two fields, returns false if not equal
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of fields to compare the values of
 function checkFieldsComparisonFlag(contract, fields) {
     var values = [];
     fields.map( (field) => {
@@ -251,12 +250,13 @@ function checkFieldsComparisonFlag(contract, fields) {
     }
 }
 
-// Tipo: check-fields-bool
-// Descripción: verifica que los campos existan, tengan valor, y su valor no sea "---" o "null".
-// Parámetros:
-//      contract: contrato a evaluar
-//      fields: array de nombres de campo a verificar
-function checkFieldsFlag(contract, fields) {
+// Type: check-fields-bool
+// Description: verifies that fields exist, have value, and their value is not "---" or "null".
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of fields name to verify
+//      rate: if true, return proportion of fields found vs. fields expected
+function checkFieldsFlag(contract, fields, rate=false) {
     var fieldsExist = fields.filter( function(field) {
         var fieldExists = null;
 
@@ -279,6 +279,10 @@ function checkFieldsFlag(contract, fields) {
         }
     } );
 
+    if(rate) {
+        return fieldsExist.length / fields.length;
+    }
+
     if( fields.length != fieldsExist.length ) {
         return 0;
     }
@@ -287,25 +291,26 @@ function checkFieldsFlag(contract, fields) {
     }
 }
 
-// Tipo: check-field-value-bool
-// Descripción: Compara el valor de un campo a un conjunto de valores. Si coincide da false.
-// Parámetros:
-//      fields: Array de campos a comparar.
-//      values: Array de valores a comparar con el de los campos.
+// Type: check-field-value-bool
+// Description: compares the value of a field to the specified parameter values, returns false if a match is found
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of fields to compare
+//      values: array of values to compare the field values with
 function checkFieldsValueFlag(contract, fields, values) {
     var foundValue = false;
 
     if(fields.length > 0) {
-        // Iteramos sobre los campos que queremos evaluar
+        // Iterate over the fields to evaluate
         fields.map( (field) => {
-            if(isString(field)) { // Es un campo plano, sin condiciones
+            if(isString(field)) { // Plain field with no conditions
                 var fieldValue = fieldPathExists(field, contract);
                 if(fieldValue.length > 0) {
-                    // Iteramos sobre los valores que encontramos para el campo
+                    // Iterate over found values for the field
                     fieldValue.map( (fieldValue) => {
-                        // Iteramos sobre los valores que queremos comparar con lo que contiene el contrato
+                        // Iterate over values to compare with the field values
                         values.map( (value) => {
-                            if(value == fieldValue) { // Encontró uno de los valores...
+                            if(value == fieldValue) { // A match is found...
                                 foundValue = true;
                             }
                         } );
@@ -313,17 +318,17 @@ function checkFieldsValueFlag(contract, fields, values) {
                 }
             }
             else {
-                // Es un objeto, hay que hacer el proceso complicado porque trae condiciones...
+                // Field is an object with conditions
                 var fieldValue = fieldPathExists(field.value, contract);
                 if(fieldValue.length > 0) {
-                    // Iteramos sobre los valores que encontramos para el campo
+                    // Iterate over the found values for the field
                     fieldValue.map( (itemValue) => {
-                        switch( Object.keys(field.operation)[0] ) { // Decidir qué operación aplicar sobre el valor del campo
+                        switch( Object.keys(field.operation)[0] ) { // Apply a predefined function over the field value
                             case 'substr':
                                 var operatedValue = itemValue.toString().substr(field.operation.substr[0]);
-                                // Iteramos sobre los valores que queremos comparar con lo que contiene el contrato
+                                // Iterate over values to compare with the field values
                                 values.map( (value) => {
-                                    if(value == operatedValue) { // Encontró uno de los valores...
+                                    if(value == operatedValue) { // A match is found...
                                         foundValue = true;
                                     }
                                 } );
@@ -340,68 +345,70 @@ function checkFieldsValueFlag(contract, fields, values) {
     }
 }
 
-// Tipo: check-fields-inverse
-// Descripción: verifica que los campos NO existan o NO tengan valor.
-// Parámetros:
-//      fields: array de nombres de campo a verificar
+// Type: check-fields-inverse
+// Description: verifies that a field does NOT exist or has no value
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of field names to verify
 function checkNotFieldsFlag(contract, fields) {
     return 1 - checkFieldsFlag(contract, fields);
 }
 
-// Tipo: check-schema-bool
-// Descripción: valida que el schema de todo el documento sea válido. Incluye los schemas de las extensiones.
-// Parámetros:
-//      contract: contrato a evaluar
-//      schema: url del archivo con el schema a comparar
+// Type: check-schema-bool
+// Description: validates the document against a specified schema
+// Parameters:
+//      contract: the document to evaluate
+//      schema: path to file with the schema to verify against
 function checkSchemaFlag() {
     return 0;
 }
 
-// Tipo: check-sections-bool
-// Descripción: Valida que cada una de las secciones principales de cada release y del compiledRelease contengan al menos un campo lleno. Si falla en algún caso, da false.
-// Parámetros:
-//      contract: contrato a evaluar
-//      fields: array de campos a comparar.
+// Type: check-sections-bool
+// Description: validates that the document contains the top level fields contained in the fields array, returns percentage of fields found
+// Parameters:
+//      contract: the document to evaluate
+//      fields: array of field names to verify
 function checkSectionsFlag(contract, fields) {
     var sectionsExist = fields.filter( function(field) { return contract.hasOwnProperty(field) && !isEmpty(contract[field]) } )
 
-    if( fields.length != sectionsExist.length ) {
+    if( sectionsExist.length == 0 ) { // None of the fields exists in the document
         return 0;
     }
     else {
-        return 1;
+        // Return proportion of fields that exist in document
+        return sectionsExist.length / fields.length;
     }
 }
 
-// Tipo: check-url-field
-// Descripción: Chequea que el campo tenga una url
-// Parámetros:
-//      contract: contrato a evaluar
-//      field: Campo que debería contener el URL
+// Type: check-url-field
+// Description: checks that a field is a valid URL
+// Parameters:
+//      contract: the document to evaluate
+//      field: the field that should contain the URL
 function checkUrlFieldFlag(contract, field) {
-    if( contract.hasOwnProperty(field) ) {
-        var url = contract[field];
-
-        if (validUrl.isUri(url)){
-            return 1;
-        }
-        else {
-            return 0;
-        }
+    var urls = fieldPathExists(field, contract);
+    if(urls.length > 0) {
+        found = false;
+        urls.map( (url) => {
+            if( validUrl.isUri(url) ) {
+                found = true;
+            }
+        } );
+        return (found)? 1 : 0;
     }
     else {
         return 0;
     }
 }
 
-// Tipo: date-difference-bool
-// Descripción: Calcula la diferencia en días entre las fechas
-// Parámetros:
-//      contract: contrato a evaluar
-//      fields.from fecha inicial que se resta de la siguiente
-//      fields.to fecha final a la que se le resta la fecha inicial
-//      difference.minimum: cantidad de días mínimos. si la resta es menor, da false.
-//      difference.maximum: cantidad de días máximos. si la resta es mayor, da false.
+// Type: date-difference-bool
+// Description: calculates the difference in days between two dates
+// Parameters:
+//      contract: the document to evaluate
+//      fields.from: start date
+//      fields.to: end date
+//      difference.minimum: number of days for which the difference must be higher, returns false if difference is lower
+//      difference.maximum: number of days for which the difference must be lower, returns false if difference is higher
 function dateDifferenceFlag(contract, fields, difference) {
     var start = null;
     var end = null;
@@ -435,7 +442,7 @@ function dateDifferenceFlag(contract, fields, difference) {
 
     var conditionType = Object.keys(difference)[0];
     var conditionResult = false;
-    if( isArray(difference[conditionType]) ) { // Si hay condiciones a evaluar
+    if( isArray(difference[conditionType]) ) { // If there are additional conditions to evaluate
         difference[conditionType].map( (condition) => {
             if(evaluateDateCondition( contract, conditionType, condition, daysDifference ) == true) {
                 conditionResult = true;
@@ -444,7 +451,7 @@ function dateDifferenceFlag(contract, fields, difference) {
 
         return conditionResult ? 1 : 0;
     }
-    else { // Si maximum o minimum es solo un número
+    else { // If maximum of minimum is just one number
         switch(Object.keys(difference)[0]) {
             case 'maximum':
                 if(parseInt(difference.maximum) < daysDifference) return 0;
@@ -459,7 +466,7 @@ function dateDifferenceFlag(contract, fields, difference) {
 }
 
 module.exports = {
-    checkAllFieldsFlag,
+    checkFieldsRateFlag,
     checkComprensibilityFlag,
     checkDatesFlag,
     checkFieldsComparisonFlag,
