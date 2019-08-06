@@ -184,8 +184,6 @@ function evaluateDateCondition(contract, conditionType, condition, daysDifferenc
 //      fields: array of field names to verify
 function checkFieldsRateFlag(contract, fields) {
     let rate = checkFieldsFlag(contract, fields, true);
-    console.log('fieldss rate:', rate);
-    process.exit(1);
     return rate;
 }
 
@@ -213,12 +211,56 @@ function checkComprensibilityFlag(contract, fields) {
 // Parameters:
 //      contract: the document to evaluate
 //      fields: array of field names to verify
-//      dates: array of dates to compare with
-function checkDatesFlag() {
-    // Chequear que exista el campo
-    // Chequear que el campo sea de tipo fecha
-    // Comparar con listado de fechas
-    return 0.5;
+//      values: array of dates to compare with
+function checkDatesFlag(contract, fields, values) {
+    let badDateFound = false;
+
+    fields.map( (field) => {
+        var tempObj = contract;
+        var fieldExists = fieldPathExists(field, tempObj);
+
+        if(fieldExists.length > 0) {
+            let thisDate = fieldExists[0];
+
+            if(isDate(thisDate)) { // If the value is of Date type, convert to string
+                thisDate = thisDate.toISOString();
+            }
+            else { // It's probably a string, make sure it represents a date
+                if(!thisDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+                    return; // Skip this field, the value found is not a date
+                }
+            }
+            let dayDate = thisDate.split('T')[0];
+
+            // Compare with array of values
+            values.map( (value) => {
+                if(value.match(/\*/)) { // Contains an asterisk (*) so should be valid for all values for that date part
+                    // Split found value and expected value into their date parts
+                    let value_parts = value.split('-');
+                    let field_parts = dayDate.split('-');
+                    // Replace the asterisked part with the found value's part
+                    for(let i=0; i<value_parts.length; i++) {
+                        if(value_parts[i] == '*') {
+                            value_parts[i] = field_parts[i];
+                        }
+                    }
+                    // Put the dates back together and compare
+                    let value_date = value_parts.join('-');
+                    let field_date = field_parts.join('-');
+                    if(value_date == field_date) {
+                        badDateFound = true; // We have found a match!
+                    }
+                }
+                else {
+                    if(value == dayDate) {
+                        badDateFound = true; // We have found a match!
+                    }
+                }
+            } );
+        }
+    } );
+
+    return (badDateFound)? 0 : 1;
 }
 
 // Type: field-equality-bool
@@ -363,7 +405,7 @@ function checkSchemaFlag() {
     return 0;
 }
 
-// Type: check-sections-bool
+// Type: check-sections-rate
 // Description: validates that the document contains the top level fields contained in the fields array, returns percentage of fields found
 // Parameters:
 //      contract: the document to evaluate

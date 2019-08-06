@@ -37,7 +37,7 @@ function getFlagScore(contract, flag) {
         case 'check-fields-rate':
             return checkFieldsRateFlag(contract, flag.fields);
         case 'check-dates-bool':
-            return checkDatesFlag();
+            return checkDatesFlag(contract, flag.fields, flag.values);
         case 'check-field-value-bool':
             return checkFieldsValueFlag(contract, flag.fields, flag.values);
         case 'check-fields-bool':
@@ -46,7 +46,7 @@ function getFlagScore(contract, flag) {
             return checkNotFieldsFlag(contract, flag.fields);
         case 'check-schema-bool':
             return checkSchemaFlag();
-        case 'check-sections-bool':
+        case 'check-sections-rate':
             return checkSectionsFlag(contract, flag.fields);
         case 'check-url-bool':
             return checkUrlFieldFlag(contract, flag.fields);
