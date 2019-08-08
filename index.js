@@ -11,6 +11,8 @@ const {
     sendCollectionToDB
 } = require('./evaluator/collection');
 
+console.time('duration');
+
 const optionDefinitions = [
     { name: 'database', alias: 'd', type: String },
     { name: 'collection', alias: 'c', type: String },
@@ -46,7 +48,6 @@ const url = 'mongodb://localhost:27017/' + args.database;
 const db = monk(url)
 .then( (db) => {
     console.log('Connected to ' + args.database + '...');
-    console.time('duration');
 
     const records = db.get(args.collection, { castIds: false });    // Collection to read records from
     const c_flags = db.get('contract_flags', { castIds: false });   // Collection to store contract_flags in
@@ -91,6 +92,17 @@ const db = monk(url)
         record = null;
         contract = null;
         evaluations = null;
+
+        // If we are testing, stop here and output test results
+        if(args.test) {
+            // console.log('Test results:');
+            // console.log('----------------------------------------------------');
+            // console.log('Contract Flags');
+            // console.log(JSON.stringify(contractEvaluations, null, 4));
+            // console.log('----------------------------------------------------');
+            console.timeEnd('duration');
+            process.exit(0);
+        }
 
         // Have we collected 10 thousand documents yet? Has the last record been processed?
         if(seenContracts - sentContracts >= chunkSize || seenRecords == globalCount) {
@@ -182,6 +194,7 @@ const db = monk(url)
             partyPromises = null;
             results = null;
 
+            console.timeEnd('duration');
             process.exit(0); // All done!
         } )
         .catch( (err) => { console.log('ERROR', err) } );

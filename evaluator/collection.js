@@ -151,7 +151,7 @@ function getContractCriteriaSummary(collection, criteriaObj) {
 function getPartyCriteriaSummary(collection, criteriaObj) {
     let summary = [];
     let tempCriteriaObj = JSON.stringify(criteriaObj);
-
+    
     collection.map( (item) => {
         let party = {
             id: item.id,

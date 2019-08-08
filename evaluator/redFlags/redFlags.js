@@ -1,5 +1,6 @@
 const ocdsSchema = require('./ocdsSchema');
 const validUrl = require('valid-url');
+const removeDiacritics = require('diacritics').remove;
 
 function isEmpty(obj) {
     for(var key in obj) {
@@ -193,17 +194,77 @@ function checkFieldsRateFlag(contract, fields) {
 //      contract: the document to evaluate
 //      fields: array of field names to verify
 function checkComprensibilityFlag(contract, fields) {
-    var gibberish = false;
-    fields.map( (field) => {
+    const comunes = [
+        'a', 'ante', 'bajo', 'cabe', 'con', 'contra', 'de', 'desde', 'en', 'entre', 'hacia', 'hasta', 'para', 'por', 'segun', 'sin', 'sobre', 'tras',
+        'la', 'las', 'el', 'los', 'del'
+    ];
+    const diccionario = [
+        "adquisicion", "partida", "codigo", "suministro", "servicio", "material", "profesional", "consultoria", "capacitacion",
+        "ejecucion", "obra", "publica", "arrendamiento", "produccion", "adjudicacion", "directa", "licitacion", "invitacion", "serv", "prestador",
+        "del", "compra", "licencia", "blockchain", "curso", "impartir", "clase", "insumo", "bienes", "suscripcion", "mantenimiento", "reconstruccion",
+        "ceremonia", "evento", "medicamento", "refaccion", "repar", "reunion", "atencion", "invitacion", "restringida", "reparacion", "calle", "avenida",
+        "plaza", "medico", "medica", "pedido", "trabajo", "desarrollo", "tecnic", "supervis", "trabajo"
+    ];
+    const dict_regex = new RegExp(diccionario.join("|"), "i");
+
+    var comprensible = false;
+
+    fields.map( (field, index) => {
         var tempObj = contract;
         var values = fieldPathExists(field, tempObj);
+        // console.log('Testing comprensibility for:', values[0]);
 
-        if(values.length > 0) {
-            // Chequear para vada valor
+        var cleanValues = removeDiacritics(values[0]).toLowerCase(); // quitar acentos y diéresis, pasar a minúsculas
+        var words = cleanValues.split(' ');
+        // console.log('Words found:', words);
+
+        var regexes = [];
+        regexes.push("\\d");                // todos los números y códigos
+        regexes.push("(\\W.*){3,}");        // cadena de texto con tres caracteres o más no alfanuméricos
+        if(index < fields.length)
+            regexes.push("\\w{1,4}\\.$");   // palabras que tengan menos de cinco letras y terminen “.” y no sean final de frase del título del contrato
+        var re = new RegExp(regexes.join("|"), "i");
+        var wordsLeft = words.filter( (word) => !re.test(word) );
+        // console.log('Removing numbers, 3 or more non-alphanumeric characters, abbreviations.');
+        // console.log('Words left:', wordsLeft);
+
+        if(wordsLeft.length > 0) {
+            let cleanWords = [];
+            // Dejar sólo alfabéticos reemplazando los otros caracteres con “ ”
+            wordsLeft.map( (word) => {
+                let cleanWord = word.replace(/\W/, ' ');
+                cleanWords.push( ...cleanWord.split(' ') );
+            } );
+            // console.log('Cleaning non-alphanumeric to spaces.');
+            // console.log('Clean words:', cleanWords);
+
+            // cualquier palabra que tenga dos letras o menos, artículos y preposiciones
+            wordsLeft = cleanWords.filter( (word) => {
+                return word.length > 2 && comunes.indexOf(word) == -1;
+            } );
+            // console.log('Taking out short words and prepositions.');
+            // console.log('Words left:', wordsLeft);
+
+            if(wordsLeft.length > 0) {
+                // cualquier palabra que tenga el titulo que se repita en el nombre del party
+                var partyNames = fieldPathExists('parties.id', tempObj);
+                var partyWords = [];
+                partyNames.map( (name) => partyWords.concat(name.split(' ')) );
+                wordsLeft = wordsLeft.filter( (word) => partyWords.indexOf(word) < 0 );
+
+                // cualquier palabra que esté en el diccionario de palabras irrelevantes para comprensibilidad del título
+                if(wordsLeft.length > 0) {
+                    wordsLeft = wordsLeft.filter( (word) => !dict_regex.test(word) );
+                    if(wordsLeft.length > 0) {
+                        // console.log('Words remaining:', wordsLeft);
+                        comprensible = true;
+                    }
+                }
+            }
         }
     } );
-
-    return gibberish ? 0 : 1;
+    // console.log('Comprensible:', comprensible);
+    return (comprensible)? 1 : 0;
 }
 
 // Type: check-dates-bool
