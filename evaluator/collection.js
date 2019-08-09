@@ -36,7 +36,7 @@ function updateFlagCollection(party, collection, year, flags) {
         let newObj = {};
 
         newObj.id = party.id;
-        newObj.name = party.name;
+        // newObj.name = party.name;
         newObj.type = 'party';
         newObj.entity = party.entity;
 
@@ -151,7 +151,7 @@ function getContractCriteriaSummary(collection, criteriaObj) {
 function getPartyCriteriaSummary(collection, criteriaObj) {
     let summary = [];
     let tempCriteriaObj = JSON.stringify(criteriaObj);
-    
+
     collection.map( (item) => {
         let party = {
             id: item.id,

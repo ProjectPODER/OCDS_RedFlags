@@ -196,14 +196,31 @@ function checkFieldsRateFlag(contract, fields) {
 function checkComprensibilityFlag(contract, fields) {
     const comunes = [
         'a', 'ante', 'bajo', 'cabe', 'con', 'contra', 'de', 'desde', 'en', 'entre', 'hacia', 'hasta', 'para', 'por', 'segun', 'sin', 'sobre', 'tras',
-        'la', 'las', 'el', 'los', 'del'
+        'la', 'las', 'el', 'los', 'del', 'que', 'mediante', 'su', 'sus', 'asi'
     ];
     const diccionario = [
-        "adquisicion", "partida", "codigo", "suministro", "servicio", "material", "profesional", "consultoria", "capacitacion",
-        "ejecucion", "obra", "publica", "arrendamiento", "produccion", "adjudicacion", "directa", "licitacion", "invitacion", "serv", "prestador",
-        "del", "compra", "licencia", "blockchain", "curso", "impartir", "clase", "insumo", "bienes", "suscripcion", "mantenimiento", "reconstruccion",
-        "ceremonia", "evento", "medicamento", "refaccion", "repar", "reunion", "atencion", "invitacion", "restringida", "reparacion", "calle", "avenida",
-        "plaza", "medico", "medica", "pedido", "trabajo", "desarrollo", "tecnic", "supervis", "trabajo"
+        "abarrote","\\babarr","accesorio","actividad","adjudicaci.?n","administraci.?n","adquisici.?n","\\bapoyo\\b","\\barea\\b","arrendamiento",
+            "articulo","asesor.?a","atenci.?n","avenida",
+        "\\bbase\\b","bienes","blockchain",
+        "\\bcabo\\b","\\bcalle\\b","camino","\\bcampo\\b","capacitaci.?n","carretera","\\bcat\\b","\\bcentr(al|o)\\b","ceremonia","ciudad","\\bclase\\b","coadyuvar","codigo","color",
+            "comestible","compra","conservaci.?n","construcci.?n","consumible","consultoria","contrataci.?n","contrato","control","curso",
+        "delegaci.?n","desarrollo","diferente","direct(a|o)","distribuci.?n","divers(a|o)","durante","\\bdos\\b",
+        "edificio","ejecucion","ejercicio","elaboraci.?n","equipo","estado","especialidad","estructura","estudio","\\betapa\\b","evento",
+        "farmacia","farmaceutic","federal",
+        "\\bgasto\\b","general","\\bgrupo",
+        "\\bherr\\b","herramienta","hospital",
+        "impartir","informaci.?n","inmueble","instalaci.?n","institu(to|ci.?n)","insumo","integral","invitaci.?n",
+        "laboratorio","licencia","licitaci.?n","localidad",
+        "\\bmant(to)?\\b","mantenimiento","maquinaria","\\bmarca\\b","material?","medicamento","medic(a|o)","medicina","\\bmedios\\b","mercancia",
+            "m.?xico","mobiliario","modelo","municipio",
+        "nacional","necesidad","\\bnuev(a|o)\\b",
+        "\\bobras?\\b","oficina","operaci.?n","\\botros?\\b",
+        "papel","parque","partida","pedido","personal","plaza","prestaci.?n","prestador","producci.?n","producto","profesional","programa","proyecto","p.?blica",
+        "realiza","reconstrucci.'n","recurso","\\bred\\b","refacci.?n","regional","rehabilitaci.?n","reparaci.?n","restringida","reuni.?n","\\bropa\\b",
+        "sector","seguimiento","servicio","sistema","soporte","subrogado","suministro","supervis","suscripci.?n","sustancia",
+        "taller","tercero","traslado","tecnic","\\btipo\\b","trabajo","\\btramo\\b","transporte",
+        "ubicado","unidad","\\buso\\b","utiles",
+        "\\bzona\\b"
     ];
     const dict_regex = new RegExp(diccionario.join("|"), "i");
 
@@ -214,6 +231,8 @@ function checkComprensibilityFlag(contract, fields) {
         var values = fieldPathExists(field, tempObj);
         // console.log('Testing comprensibility for:', values[0]);
 
+        if(values.length == 0 || values[0].length == 0 || typeof values[0] == 'number') { return; }
+        
         var cleanValues = removeDiacritics(values[0]).toLowerCase(); // quitar acentos y diéresis, pasar a minúsculas
         var words = cleanValues.split(' ');
         // console.log('Words found:', words);
@@ -493,6 +512,8 @@ function checkUrlFieldFlag(contract, field) {
     if(urls.length > 0) {
         found = false;
         urls.map( (url) => {
+            let url_clean = url;
+            if(url.indexOf(' ')) url_clean = url.replace(' ', '%20');
             if( validUrl.isUri(url) ) {
                 found = true;
             }

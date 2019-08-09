@@ -10,6 +10,7 @@ const {
     getContractCriteriaSummary,
     sendCollectionToDB
 } = require('./evaluator/collection');
+const { createOrgTree, updateOrgTree } = require('./evaluator/tree');
 
 console.time('duration');
 
@@ -38,6 +39,8 @@ const flags = parseFlags(args.flags);   // TODO: Add a syntax check to the flags
 const flagCollectionObj = createFlagCollectionObject(flags);
 const partyFlagCollection = [];
 const flagCriteriaObj = getCriteriaObject(flags);
+
+let orgTree = createOrgTree();
 
 let query = {};
 if(args.test) { // Use the -t flag to test a single record by ocid
@@ -85,9 +88,13 @@ const db = monk(url)
                 evaluation.contratoFlags.parties.map( (party) => { // Assign contractScore values to all the parties involved
                     updateFlagCollection(party, partyFlagCollection, evaluation.year, evaluation.contratoFlags.flags);
                 } );
+
+                // AQUI BANDERAS NODO Y CONFIABILIDAD
+                updateOrgTree(orgTree.roots, evaluation.contract);
             } );
             contractEvaluations = contractEvaluations.concat(getContractCriteriaSummary(evaluations, flagCriteriaObj));
         }
+
         // Cleanup...
         record = null;
         contract = null;
@@ -95,11 +102,13 @@ const db = monk(url)
 
         // If we are testing, stop here and output test results
         if(args.test) {
-            // console.log('Test results:');
-            // console.log('----------------------------------------------------');
-            // console.log('Contract Flags');
-            // console.log(JSON.stringify(contractEvaluations, null, 4));
-            // console.log('----------------------------------------------------');
+            console.log('Test results:');
+            console.log('----------------------------------------------------');
+            console.log('Contract Flags');
+            console.log( JSON.stringify(contractEvaluations, null, 4) );
+            console.log('----------------------------------------------------');
+            console.log('Org Tree:');
+            console.log( JSON.stringify(orgTree, null, 4) );
             console.timeEnd('duration');
             process.exit(0);
         }

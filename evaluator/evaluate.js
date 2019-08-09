@@ -70,6 +70,10 @@ function getContractsFromRecord(record) {
         award.suppliers.map( (supplier) => supplier_ids.push(supplier.id) );
         let supplier_parties = record.parties.filter( (party) => supplier_ids.indexOf(party.id) >= 0 );
 
+        let funder_party = null;
+        let funder_arr = record.parties.filter( (party) => party.roles[0] == "funder" );
+        if(funder_arr.length > 0) funder_party = funder_arr[0];
+
         let computed_contract = {};
         for( var x in record ) {
             switch(x) {
@@ -80,6 +84,8 @@ function getContractsFromRecord(record) {
                         computed_contract.parties = [];
                     if(supplier_parties.length > 0)
                         supplier_parties.map( (supplier) => computed_contract.parties.push(supplier) );
+                    if(funder_party)
+                        computed_contract.parties.push(funder_party);
                     break;
                 case 'awards':
                     computed_contract.awards = [ award ];
@@ -137,7 +143,6 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                     ids.map( (id, index) => {
                         var funderObj = {
                             id: id,
-                            name: names[index],
                             entity: role
                         }
                         contratoParties.push(funderObj);
@@ -146,7 +151,6 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                 else {
                     var partyObj = {
                         id: party.id,
-                        name: party.name,
                         entity: role
                     }
                 }
@@ -154,7 +158,6 @@ function evaluateFlags(record, flags, flagCollectionObj) {
             else {
                 var partyObj = {
                     id: party.id,
-                    name: party.name,
                     entity: role
                 }
             }
@@ -165,13 +168,12 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                 if ( party.hasOwnProperty('memberOf') ) {
                   var dependencyObj = {
                     id: party.memberOf[0].id,
-                    name: party.memberOf[0].name,
                     entity: 'dependency'
                   }
                   contratoParties.push(dependencyObj);
                 }
 
-                Object.assign( partyObj, { parent: { id: party.memberOf[0].id, name: party.memberOf[0].name } } );
+                Object.assign( partyObj, { parent: { id: party.memberOf[0].id } } );
 
                 // If the govLevel is "region", extract the state
                 // If the govLevel is "city", extract the municipality and the state
@@ -179,7 +181,6 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                     case 'region':
                         var stateObj = {
                             id: simpleName(launder(party.address.region)),
-                            name: party.address.region,
                             entity: 'state'
                         }
                         contratoParties.push(stateObj);
@@ -187,8 +188,7 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                     case 'city':
                         var cityObj = {
                             id: simpleName(launder(party.address.locality)),
-                            name: party.address.locality,
-                            parent: { id: simpleName(launder(party.address.region)), name: party.address.region },
+                            parent: { id: simpleName(launder(party.address.region)) },
                             entity: 'municipality'
                         }
                         contratoParties.push(cityObj);
@@ -212,7 +212,7 @@ function evaluateFlags(record, flags, flagCollectionObj) {
         // Add parties to this contract
         Object.assign(contratoFlags, { parties: contratoParties });
 
-        results.push( { contratoFlags, year } );
+        results.push( { contratoFlags, year, contract: contract } );
     } );
 
     return results;
