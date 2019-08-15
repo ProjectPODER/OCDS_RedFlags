@@ -155,7 +155,6 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
     collection.map( (item) => {
         let party = {
             id: item.id,
-            name: item.name,
             type: item.entity
         };
 
@@ -168,21 +167,28 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
         let partyFlagObj = {
             party,
             criteria_score,
+            rules_score: {},
             years
         };
 
         // Iterate categories
         Object.keys(item.flags).map( function(categoria, index) {
             var flagCount = 0;
+            partyFlagObj.rules_score[categoria] = {};
 
             // Iterate flags
             Object.keys(item.flags[categoria]).map( function(bandera, subindex) {
+                var scoreCount = 0;
+                var scoreSum = 0;
+                partyFlagObj.rules_score[categoria][bandera] = {};
+
                 // Iterate years with a score for the flag
                 item.flags[categoria][bandera].map( (score) => {
                     if( partyFlagObj.years.filter( (yearObj) => { return yearObj.year == score.year } ).length == 0 ) {
                         let criteriaYearObj = {
                             year: score.year,
-                            criteria_score: JSON.parse(tempCriteriaObj)
+                            criteria_score: JSON.parse(tempCriteriaObj),
+                            rules_score: {}
                         }
                         partyFlagObj.years.push(criteriaYearObj);
                     }
@@ -190,9 +196,17 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
                     partyFlagObj.years.map( (yearObj) => {
                         if(yearObj.year == score.year) {
                             yearObj.criteria_score[categoria] += score.score;
+                            if( !yearObj.rules_score[categoria] ) yearObj.rules_score[categoria] = {};
+                            yearObj.rules_score[categoria][bandera] = score.score;
+                            scoreSum += score.score;
                         }
                     } );
+                    scoreCount++;
                 } );
+
+                // Calculate average of all year scores for each individual rule score
+                partyFlagObj.rules_score[categoria][bandera] = scoreSum / scoreCount;
+
                 flagCount++;
             } );
 
@@ -218,7 +232,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             yearObj.criteria_score.total_score = year_total / num_categorias;
         } )
 
-        // Calculate global total_score
+        // Calculate contract total_score
         var global_total = 0;
         var num_categorias = 0;
         Object.keys(partyFlagObj.criteria_score).map( function(cat, index) {
@@ -230,6 +244,33 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
         partyFlagObj.criteria_score.total_score = global_total / num_categorias;
 
         summary.push(partyFlagObj);
+    } );
+
+    return summary;
+}
+
+function getPartyNodeSummary(collection, nodeScores) {
+    let summary = [];
+
+    collection.map( (item) => {
+        if(nodeScores[item.party.id]) {
+            let node_score = nodeScores[item.party.id];
+
+            // Assign node_score object to top level
+            Object.assign( item, { 'node_score': node_score.nodeScore } );
+
+            // Assign each node_score object to each evaluated year
+            item.years.map( (year) => {
+                if(node_score.years[year.year]) {
+                    Object.assign(year, { 'node_score': node_score.years[year.year].nodeScore } );
+                }
+            } );
+        }
+        else {
+            console.log('Node score not found:', item.party.id);
+        }
+
+        summary.push(item);
     } );
 
     return summary;
@@ -252,6 +293,7 @@ function sendCollectionToDB(flagCollection, dbCollection) {
 module.exports = {
     createFlagCollectionObject,
     updateFlagCollection,
+    getPartyNodeSummary,
     getPartyCriteriaSummary,
     getContractCriteriaSummary,
     sendCollectionToDB

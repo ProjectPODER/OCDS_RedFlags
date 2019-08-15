@@ -9,6 +9,8 @@ function updateOrgTree(roots, contract) {
     //      dependencyID
     //      ucID
     //      procmethod
+    //      funders[]
+    //          id
     //      suppliers[]
     //          id
     //          contract
@@ -17,23 +19,42 @@ function updateOrgTree(roots, contract) {
     //              title
     //              amount
     let data = extractDataFromContract(contract);
+    // TODO: refactor
+    // Funders and buyer in the same array
 
     // Get UC or create it if not seen yet
     if(!branchExists(roots, data.ucID)) addBranch(roots, data.ucID, data.dependencyID);
     let branch = roots[data.ucID];
+
+    let f_branches = [];
+    if(data.funders.length > 0) {
+        data.funders.map( (funder) => {
+            if(!branchExists(roots, funder)) addBranch(roots, funder, null);
+            f_branches.push(roots[funder]);
+        } );
+    }
 
     // Get suppliers
     data.suppliers.map( (supplier) => {
         if( !leafExists(branch, supplier.id) )
             addLeafToBranch(branch, supplier.id); // Create supplier node if it does not exist yet
         let leaf = branch.children[supplier.id];
+        f_branches.map( (f) => {
+            if( !leafExists(f, supplier.id) )
+                addLeafToBranch(f, supplier.id); // Create supplier node if it does not exist yet for funder
+        } );
 
         let year_index = supplier.contract.year.toString();
         if( !leaf.years[year_index] )
             leaf.years[year_index] = newYearObj(); // Initialize year object for supplier if not seen yet
         if( !branch.years[year_index] )
             branch.years[year_index] = newYearObj(); // Initialize year object for buyer if not seen yet
-
+        f_branches.map( (f) => {
+            if( !f.years[year_index] )
+                f.years[year_index] = newYearObj(); // Initialize year object for funders if not seen yet
+            if( !f.children[supplier.id].years[year_index] )
+                f.children[supplier.id].years[year_index] = newYearObj(); // Initialize year object for funder supplier if not seen yet
+        } );
 
         // Update contract count and amount for this buyer
         branch.years[year_index].c_c++;
@@ -41,6 +62,15 @@ function updateOrgTree(roots, contract) {
         // Update contract count and amount for this supplier
         leaf.years[year_index].c_c++;
         leaf.years[year_index].c_a += parseFloat(supplier.contract.amount);
+        // Update contract count and amount for funders
+        f_branches.map( (f) => {
+            f.years[year_index].c_c++;
+            f.years[year_index].c_a += parseFloat(supplier.contract.amount);
+            // Update contract count and amount for this supplier
+            f.children[supplier.id].years[year_index].c_c++;
+            f.children[supplier.id].years[year_index].c_a += parseFloat(supplier.contract.amount);
+        } );
+
 
         let title_index = supplier.contract.title;
         // Update title count for this buyer
@@ -53,6 +83,18 @@ function updateOrgTree(roots, contract) {
             leaf.years[year_index].titles[title_index] = 1;
         else
             leaf.years[year_index].titles[title_index]++;
+        // Update title count for funders
+        f_branches.map( (f) => {
+            if( !f.years[year_index].titles[title_index] )
+                f.years[year_index].titles[title_index] = 1;
+            else
+                f.years[year_index].titles[title_index]++;
+            // Update title count for this supplier
+            if( !f.children[supplier.id].years[year_index].titles[title_index] )
+                f.children[supplier.id].years[year_index].titles[title_index] = 1;
+            else
+                f.children[supplier.id].years[year_index].titles[title_index]++;
+        } );
 
         let amount_index = supplier.contract.amount.toString();
         // Update amount count for this buyer and amount
@@ -65,6 +107,18 @@ function updateOrgTree(roots, contract) {
             leaf.years[year_index].amounts[amount_index] = 1;
         else
             leaf.years[year_index].amounts[amount_index]++;
+        // Update amount count for funders
+        f_branches.map( (f) => {
+            if( !f.years[year_index].amounts[amount_index] )
+                f.years[year_index].amounts[amount_index] = 1;
+            else
+                f.years[year_index].amounts[amount_index]++;
+            // Update amount count for this supplier and amount
+            if( !f.children[supplier.id].years[year_index].amounts[amount_index] )
+                f.children[supplier.id].years[year_index].amounts[amount_index] = 1;
+            else
+                f.children[supplier.id].years[year_index].amounts[amount_index]++;
+        } );
 
         if( data.procMethod == 'direct' || data.procMethod == 'limited' ) {
             // Update direct procurement count and amount for this buyer
@@ -74,6 +128,16 @@ function updateOrgTree(roots, contract) {
             // Update direct procurement count and amount for this supplier
             leaf.years[year_index].direct.c_c++;
             leaf.years[year_index].direct.c_a += parseFloat(supplier.contract.amount);
+
+            // Update direct procurement count and amount for funders
+            f_branches.map( (f) => {
+                f.years[year_index].direct.c_c++;
+                f.years[year_index].direct.c_a += parseFloat(supplier.contract.amount);
+
+                // Update direct procurement count and amount for this supplier
+                f.children[supplier.id].years[year_index].direct.c_c++;
+                f.children[supplier.id].years[year_index].direct.c_a += parseFloat(supplier.contract.amount);
+            } );
         }
 
         let date_index = supplier.contract.date;
@@ -82,6 +146,13 @@ function updateOrgTree(roots, contract) {
             branch.years[year_index].dates[date_index] = 1;
         else
             branch.years[year_index].dates[date_index]++;
+        // And update the date counter for the buyer
+        f_branches.map( (f) => {
+            if( !f.years[year_index].dates[date_index] )
+                f.years[year_index].dates[date_index] = 1;
+            else
+                f.years[year_index].dates[date_index]++;
+        } );
 
         branch.children[supplier.id] = leaf;
     } );
@@ -99,12 +170,16 @@ function extractDataFromContract(contract) {
     let uc_id = '';
     let proc_method = contract.tender.procurementMethod;
     let suppliers = [];
+    let funders = [];
 
     contract.parties.map( (p) => {
         let role = p.roles[0];
         if(role == 'buyer') {
             uc_id = p.id;
             dependency_id = p.memberOf[0].id;
+        }
+        if(role == 'funder') {
+            funders.push(p.id);
         }
     } );
 
@@ -119,7 +194,8 @@ function extractDataFromContract(contract) {
         }
         let supplier_ids = getSupplierIDs(contract.awards, c.awardID);
         supplier_ids.map( (s) => {
-            suppliers.push( { id: s.id, contract: c_summary } );
+            if(s.id)
+                suppliers.push( { id: s.id, contract: c_summary } );
         } )
     } );
 
@@ -127,7 +203,8 @@ function extractDataFromContract(contract) {
         dependencyID: dependency_id,
         ucID: uc_id,
         procmethod: proc_method,
-        suppliers: suppliers
+        suppliers: suppliers,
+        funders: funders
     }
 }
 

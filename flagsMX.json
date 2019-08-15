@@ -136,7 +136,7 @@
     {
         "id": "temp-dl",
         "category": "Temporalidad",
-        "name": "Duraciones larga",
+        "name": "Duraciones largas",
         "type": "date-difference-bool",
         "difference":{
             "maximum": 1000
@@ -188,7 +188,7 @@
     {
         "id": "comp-cfc",
         "category": "Competitividad",
-        "name": "campos fundamentales para la competitividad",
+        "name": "Campos Fundamentales para la Competitividad",
         "type": "check-fields-bool",
         "fields": [
             {
@@ -280,7 +280,7 @@
     {
         "id": "traz-cft",
         "category": "Trazabilidad",
-        "name": "campos fundamentales para la trazabilidad",
+        "name": "campos Fundamentales para la Trazabilidad",
         "type": "check-fields-bool",
         "fields": [
             "planning.budget",
