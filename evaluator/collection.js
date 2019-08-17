@@ -111,9 +111,9 @@ function getContractCriteriaSummary(collection, criteriaObj) {
             parties: item.parties,
             value: item.value
         };
-        let criteria_score = JSON.parse(tempCriteriaObj);
+        let contract_score = JSON.parse(tempCriteriaObj);
 
-        Object.assign(contractFlagObj, { criteria_score });
+        Object.assign(contractFlagObj, { contract_score });
         Object.assign(contractFlagObj, { rules_score: {} });
 
         // Iterate flag categories
@@ -124,23 +124,23 @@ function getContractCriteriaSummary(collection, criteriaObj) {
             // Iterate flags
             Object.keys(item.flags[categoria]).map( function(bandera, subindex) {
                 contractFlagObj.rules_score[categoria][bandera] = item.flags[categoria][bandera][0].score;
-                contractFlagObj.criteria_score[categoria] += item.flags[categoria][bandera][0].score;
+                contractFlagObj.contract_score[categoria] += item.flags[categoria][bandera][0].score;
                 flagCount++;
             } );
 
-            contractFlagObj.criteria_score[categoria] /= flagCount;
+            contractFlagObj.contract_score[categoria] /= flagCount;
         } );
 
         // Calculate the global total_score
         var global_total = 0;
         var num_categorias = 0;
-        Object.keys(contractFlagObj.criteria_score).map( function(cat, index) {
+        Object.keys(contractFlagObj.contract_score).map( function(cat, index) {
             if(cat != 'total_score') {
-                global_total += contractFlagObj.criteria_score[cat];
+                global_total += contractFlagObj.contract_score[cat];
                 num_categorias++;
             }
         } );
-        contractFlagObj.criteria_score.total_score = global_total / num_categorias;
+        contractFlagObj.contract_score.total_score = global_total / num_categorias;
 
         summary.push(contractFlagObj);
     } );
@@ -162,11 +162,11 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
             Object.assign( party, { parent: item.parent } )
         }
 
-        let criteria_score = JSON.parse(tempCriteriaObj);
+        let contract_score = JSON.parse(tempCriteriaObj);
         let years = [];
         let partyFlagObj = {
             party,
-            criteria_score,
+            contract_score,
             rules_score: {},
             years
         };
@@ -187,7 +187,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
                     if( partyFlagObj.years.filter( (yearObj) => { return yearObj.year == score.year } ).length == 0 ) {
                         let criteriaYearObj = {
                             year: score.year,
-                            criteria_score: JSON.parse(tempCriteriaObj),
+                            contract_score: JSON.parse(tempCriteriaObj),
                             rules_score: {}
                         }
                         partyFlagObj.years.push(criteriaYearObj);
@@ -195,7 +195,7 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
 
                     partyFlagObj.years.map( (yearObj) => {
                         if(yearObj.year == score.year) {
-                            yearObj.criteria_score[categoria] += score.score;
+                            yearObj.contract_score[categoria] += score.score;
                             if( !yearObj.rules_score[categoria] ) yearObj.rules_score[categoria] = {};
                             yearObj.rules_score[categoria][bandera] = score.score;
                             scoreSum += score.score;
@@ -212,36 +212,36 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
 
             // Calculate averages for this category and this year
             partyFlagObj.years.map( (yearObj) => {
-                yearObj.criteria_score[categoria] /= flagCount;
-                partyFlagObj.criteria_score[categoria] += yearObj.criteria_score[categoria];
+                yearObj.contract_score[categoria] /= flagCount;
+                partyFlagObj.contract_score[categoria] += yearObj.contract_score[categoria];
             } );
 
-            partyFlagObj.criteria_score[categoria] /= partyFlagObj.years.length;
+            partyFlagObj.contract_score[categoria] /= partyFlagObj.years.length;
         } );
 
         // Calculate total_scores per year
         partyFlagObj.years.map( (yearObj) => {
             var year_total = 0;
             var num_categorias = 0;
-            Object.keys(yearObj.criteria_score).map( function(cat, index) {
+            Object.keys(yearObj.contract_score).map( function(cat, index) {
                 if(cat != 'total_score') {
-                    year_total += yearObj.criteria_score[cat];
+                    year_total += yearObj.contract_score[cat];
                     num_categorias++;
                 }
             } );
-            yearObj.criteria_score.total_score = year_total / num_categorias;
+            yearObj.contract_score.total_score = year_total / num_categorias;
         } )
 
         // Calculate contract total_score
         var global_total = 0;
         var num_categorias = 0;
-        Object.keys(partyFlagObj.criteria_score).map( function(cat, index) {
+        Object.keys(partyFlagObj.contract_score).map( function(cat, index) {
             if(cat != 'total_score') {
-                global_total += partyFlagObj.criteria_score[cat];
+                global_total += partyFlagObj.contract_score[cat];
                 num_categorias++;
             }
         } );
-        partyFlagObj.criteria_score.total_score = global_total / num_categorias;
+        partyFlagObj.contract_score.total_score = global_total / num_categorias;
 
         summary.push(partyFlagObj);
     } );
@@ -251,18 +251,39 @@ function getPartyCriteriaSummary(collection, criteriaObj) {
 
 function getPartyNodeSummary(collection, nodeScores) {
     let summary = [];
-
     collection.map( (item) => {
         if(nodeScores[item.party.id]) {
             let node_score = nodeScores[item.party.id];
 
             // Assign node_score object to top level
+            let node_scores_sum = 0;
+            let node_score_count = 0;
+            Object.keys(node_score.nodeScore).map( (x) => {
+                node_scores_sum += node_score.nodeScore[x];
+                node_score_count++;
+            } );
+            let node_total_score = node_scores_sum / node_score_count;
+            Object.assign( node_score.nodeScore, { 'total_score': node_total_score } );
             Object.assign( item, { 'node_score': node_score.nodeScore } );
+
+            let total_score = (item.contract_score.total_score + node_total_score) / 2;
+            Object.assign( item, { 'total_score': total_score } );
 
             // Assign each node_score object to each evaluated year
             item.years.map( (year) => {
                 if(node_score.years[year.year]) {
-                    Object.assign(year, { 'node_score': node_score.years[year.year].nodeScore } );
+                    let year_node_scores_sum = 0;
+                    let year_node_scores_count = 0;
+                    Object.keys(node_score.years[year.year].nodeScore).map( (x) => {
+                        if(node_score.years[year.year].nodeScore[x].hasOwnProperty('score'))
+                            year_node_scores_sum += node_score.years[year.year].nodeScore[x].score;
+                        else
+                            year_node_scores_sum += node_score.years[year.year].nodeScore[x];
+                        year_node_scores_count++;
+                    } );
+                    let year_node_total_score = year_node_scores_sum / year_node_scores_count;
+                    Object.assign( node_score.years[year.year].nodeScore, { 'total_score': year_node_total_score } );
+                    Object.assign( year, { 'node_score': node_score.years[year.year].nodeScore } );
                 }
             } );
         }

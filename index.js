@@ -90,9 +90,11 @@ const db = monk(url)
                 if( record.records[0].hasOwnProperty('compiledRelease') )
                     contract = record.records[0].compiledRelease;
             }
+            else if(record.records.hasOwnProperty('compiledRelease'))
+                contract = record.records.compiledRelease;
         }
         else contract = record;
-
+console.log(seenRecords, contract.ocid);
         if( isValidContract(contract) ) {
             evaluations = evaluateFlags(contract, flags, flagCollectionObj); // Perform evaluation of the document
             seenContracts += evaluations.length;
@@ -102,7 +104,7 @@ const db = monk(url)
                 } );
 
                 // AQUI BANDERAS NODO Y CONFIABILIDAD
-                updateOrgTree(orgTree.roots, evaluation.contract);
+                updateOrgTree(orgTree.roots, evaluation.contract, evaluation.contratoFlags.parties);
             } );
             contractEvaluations = contractEvaluations.concat(getContractCriteriaSummary(evaluations, flagCriteriaObj));
         }
@@ -194,7 +196,7 @@ const db = monk(url)
                 party_flags.map( (party) => {
                     partyScores[party.party.id] = {
                         party: party.party,
-                        criteria_score: party.criteria_score,
+                        contract_score: party.contract_score,
                         years: party.years
                     };
                 } );

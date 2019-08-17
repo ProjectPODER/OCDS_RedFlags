@@ -211,7 +211,7 @@ function checkComprensibilityFlag(contract, fields) {
         "\\bherr\\b","herramienta","hospital",
         "impartir","informaci.?n","inmueble","instalaci.?n","institu(to|ci.?n)","insumo","integral","invitaci.?n",
         "laboratorio","licencia","licitaci.?n","localidad",
-        "\\bmant(to)?\\b","mantenimiento","maquinaria","\\bmarca\\b","material?","medicamento","medic(a|o)","medicina","\\bmedios\\b","mercancia",
+        "\\bmant(to)?\\b","mantenimiento","maquinaria","\\bmarca\\b","material?","medicamento","m.?dic(a|o)","medicina","\\bmedios\\b","mercancia",
             "m.?xico","mobiliario","modelo","municipio",
         "nacional","necesidad","\\bnuev(a|o)\\b",
         "\\bobras?\\b","oficina","operaci.?n","\\botros?\\b",
@@ -232,7 +232,7 @@ function checkComprensibilityFlag(contract, fields) {
         // console.log('Testing comprensibility for:', values[0]);
 
         if(values.length == 0 || values[0].length == 0 || typeof values[0] == 'number') { return; }
-        
+
         var cleanValues = removeDiacritics(values[0]).toLowerCase(); // quitar acentos y diéresis, pasar a minúsculas
         var words = cleanValues.split(' ');
         // console.log('Words found:', words);

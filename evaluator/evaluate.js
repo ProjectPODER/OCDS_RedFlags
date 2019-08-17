@@ -182,6 +182,11 @@ function evaluateFlags(record, flags, flagCollectionObj) {
                             entity: 'municipality'
                         }
                         contratoParties.push(cityObj);
+                        var cityStateObj = {
+                            id: simpleName(launder(party.address.region)),
+                            entity: 'state'
+                        }
+                        contratoParties.push(cityStateObj);
                         break;
                     case 'country':
                         // Nothing to be done at country level...
@@ -230,16 +235,33 @@ function evaluateNodeFlags(roots, partyScores) {
         let supplier_total_score = 0;
         supplierIDs.map( (id) => {
             if(partyScores[id]) {
-                supplier_total_score += partyScores[id].criteria_score.total_score;
+                supplier_total_score += partyScores[id].contract_score.total_score;
                 if( !nodeScores[id] ) { // No hemos visto este supplier todavía
                     nodeScores[id] = {
-                        nodeScore: { conf: partyScores[ucID].criteria_score.total_score },
+                        nodeScore: {
+                            conf: partyScores[ucID].contract_score.total_score,
+                            aepm: 0,
+                            aepc: 0,
+                            tcr5: 0,
+                            tcr10: 0,
+                            tcr15: 0,
+                            tcr20: 0,
+                            mcr5: 0,
+                            mcr10: 0,
+                            mcr15: 0,
+                            mcr20: 0,
+                            celp: 0,
+                            rla: 0,
+                            ncap3: 0,
+                            ncap4: 0,
+                            ncap5: 0
+                        },
                         numParties: 1,
                         years: {}
                     }
                 }
                 else {
-                    nodeScores[id].nodeScore.conf = accumulativeAverage(nodeScores[id].nodeScore.conf, nodeScores[id].numParties, partyScores[ucID].criteria_score.total_score, 1);
+                    nodeScores[id].nodeScore.conf = accumulativeAverage(nodeScores[id].nodeScore.conf, nodeScores[id].numParties, partyScores[ucID].contract_score.total_score, 1);
                     nodeScores[id].numParties ++;
                 }
             }
@@ -297,7 +319,7 @@ function evaluateNodeFlags(roots, partyScores) {
                         ncap4: 0,
                         ncap5: 0
                     },
-                    numParties: 1,
+                    numParties: 0,
                     years: {}
                 }
             }
@@ -379,6 +401,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let supplier_year_amounts = getSupplierYearAmounts(branch, year);
             let buyer_year_total = branch.years[year].c_a;
 
+            nodeScores[ucID].years[year].nodeScore.aepm = { score: 0 };
             if(supplier_year_amounts.length > 0) {
                 seen = false;
                 supplier_year_amounts.map( (s) => {
@@ -399,6 +422,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let supplier_year_counts = getSupplierYearCounts(branch, year);
             let buyer_year_count = branch.years[year].c_c;
 
+            nodeScores[ucID].years[year].nodeScore.aepc = { score: 0 };
             if(supplier_year_counts.length > 0) {
                 seen = false;
                 supplier_year_counts.map( (s) => {
@@ -421,6 +445,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let tcr20_threshhold = 0.2;
             let buyer_year_title_count = branch.years[year].c_c;
 
+            nodeScores[ucID].years[year].nodeScore.tcr5 = { score: 0 };
             seen = false;
             for(var t in branch.years[year].titles) {
                 if( branch.years[year].titles[t] >= buyer_year_title_count * tcr5_threshhold ) {
@@ -435,6 +460,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) tcr5_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.tcr10 = { score: 0 };
             for(var t in branch.years[year].titles) {
                 if( branch.years[year].titles[t] >= buyer_year_title_count * tcr10_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.tcr10 = {
@@ -448,6 +474,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) tcr10_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.tcr15 = { score: 0 };
             for(var t in branch.years[year].titles) {
                 if( branch.years[year].titles[t] >= buyer_year_title_count * tcr15_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.tcr15 = {
@@ -461,6 +488,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) tcr15_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.tcr20 = { score: 0 };
             for(var t in branch.years[year].titles) {
                 if( branch.years[year].titles[t] >= buyer_year_title_count * tcr20_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.tcr20 = {
@@ -481,6 +509,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let buyer_year_amount_count = branch.years[year].c_c;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.mcr5 = { score: 0 };
             for(var a in branch.years[year].amounts) {
                 if( branch.years[year].amounts[a] >= buyer_year_amount_count * mcr5_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.mcr5 = {
@@ -494,6 +523,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) mcr5_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.mcr10 = { score: 0 };
             for(var a in branch.years[year].amounts) {
                 if( branch.years[year].amounts[a] >= buyer_year_amount_count * mcr10_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.mcr10 = {
@@ -507,6 +537,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) mcr10_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.mcr15 = { score: 0 };
             for(var a in branch.years[year].amounts) {
                 if( branch.years[year].amounts[a] >= buyer_year_amount_count * mcr15_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.mcr15 = {
@@ -520,6 +551,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) mcr15_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.mcr20 = { score: 0 };
             for(var a in branch.years[year].amounts) {
                 if( branch.years[year].amounts[a] >= buyer_year_amount_count * mcr20_threshhold ) {
                     nodeScores[ucID].years[year].nodeScore.mcr20 = {
@@ -537,6 +569,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let supplier_year_direct_amounts = getSupplierYearDirectAmounts(branch, year);
             let buyer_year_direct_total = branch.years[year].direct.c_a;
 
+            nodeScores[ucID].years[year].nodeScore.celp = { score: 0 };
             if(supplier_year_direct_amounts.length > 0 && buyer_year_direct_total > 0) {
                 seen = false;
                 supplier_year_amounts.map( (s) => {
@@ -554,6 +587,7 @@ function evaluateNodeFlags(roots, partyScores) {
 
             // ---------- REBASA EL LIMITE ASIGNADO ----------
             let rla_threshhold = 0.3;
+            nodeScores[ucID].years[year].nodeScore.rla = { score: 0 };
             if(buyer_year_direct_total > branch.years[year].c_a * rla_threshhold) {
                 nodeScores[ucID].years[year].nodeScore.rla = {
                     value: buyer_year_direct_total / branch.years[year].c_a,
@@ -568,6 +602,7 @@ function evaluateNodeFlags(roots, partyScores) {
             let ncap5_threshhold = 0.05;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.ncap3 = { score: 0 };
             for(var d in branch.years[year].dates) {
                 if(branch.years[year].dates[d] >= buyer_year_count * ncap3_threshhold) {
                     nodeScores[ucID].years[year].nodeScore.ncap3 = {
@@ -581,6 +616,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) ncap3_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.ncap4 = { score: 0 };
             for(var d in branch.years[year].dates) {
                 if(branch.years[year].dates[d] >= buyer_year_count * ncap4_threshhold) {
                     nodeScores[ucID].years[year].nodeScore.ncap4 = {
@@ -594,6 +630,7 @@ function evaluateNodeFlags(roots, partyScores) {
             if(seen) ncap4_acc++;
 
             seen = false;
+            nodeScores[ucID].years[year].nodeScore.ncap5 = { score: 0 };
             for(var d in branch.years[year].dates) {
                 if(branch.years[year].dates[d] >= buyer_year_count * ncap5_threshhold) {
                     nodeScores[ucID].years[year].nodeScore.ncap5 = {
@@ -689,6 +726,10 @@ function evaluateNodeFlags(roots, partyScores) {
             nodeScores[dependenciaID].nodeScore.ncap5 = accumulativeAverage(nodeScores[dependenciaID].nodeScore.ncap5, nodeScores[dependenciaID].numParties, nodeScores[ucID].nodeScore.ncap5, 1);
             nodeScores[dependenciaID].numParties++;
         }
+
+        // Cleanup...
+        branch = null;
+        roots[rootID] = null;
     }
 
     return nodeScores;
@@ -735,7 +776,7 @@ function getBuyerYearScore(id, partyScores, year) {
     if(partyScores[id]) {
         partyScores[id].years.map( (b_year) => {
             if(b_year.year == year) {
-                score = b_year.criteria_score.total_score;
+                score = b_year.contract_score.total_score;
             }
         } );
     }
@@ -752,7 +793,7 @@ function getSupplierYearScores(supplierIDs, partyScores, year) {
         if(partyScores[id]) {
             partyScores[id].years.map( (s_year) => {
                 if(s_year.year == year) {
-                    total_score += s_year.criteria_score.total_score;
+                    total_score += s_year.contract_score.total_score;
                     num_suppliers++;
                     year_ids.push(id);
                 }

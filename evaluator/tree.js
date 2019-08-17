@@ -4,7 +4,7 @@ function createOrgTree() {
     }
 }
 
-function updateOrgTree(roots, contract) {
+function updateOrgTree(roots, contract, parties) {
     // Data from contracts:
     //      dependencyID
     //      ucID
@@ -20,12 +20,14 @@ function updateOrgTree(roots, contract) {
     //              amount
     let data = extractDataFromContract(contract);
     // TODO: refactor
-    // Funders and buyer in the same array
+    // Funders and buyer in the same roots array
+    // Check received parties for contract to add state and municipality to roots array
 
     // Get UC or create it if not seen yet
     if(!branchExists(roots, data.ucID)) addBranch(roots, data.ucID, data.dependencyID);
     let branch = roots[data.ucID];
 
+    // Get funders if they exist
     let f_branches = [];
     if(data.funders.length > 0) {
         data.funders.map( (funder) => {
@@ -33,6 +35,21 @@ function updateOrgTree(roots, contract) {
             f_branches.push(roots[funder]);
         } );
     }
+    // Get states and municipalities if they exist
+    parties.map( (party) => {
+        if(party.entity == 'state') {
+            if(!branchExists(roots, party.id)) addBranch(roots, party.id, null);
+            f_branches.push(roots[party.id]);
+        }
+        else if(party.entity == 'municipality') {
+            // Add the city level|
+            if(!branchExists(roots, party.id)) addBranch(roots, party.id, party.parent.id);
+            f_branches.push(roots[party.id]);
+            // Add the region level
+            if(!branchExists(roots, party.parent.id)) addBranch(roots, party.parent.id, null);
+            f_branches.push(roots[party.parent.id]);
+        }
+    } );
 
     // Get suppliers
     data.suppliers.map( (supplier) => {

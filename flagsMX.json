@@ -2,13 +2,13 @@
     {
         "id": "trans-ov",
         "category": "Transparencia",
-        "name": "OCDS válido",
+        "name": "OCDS Válido",
         "type": "check-schema-bool"
     },
     {
         "id": "trans-sc",
         "category": "Transparencia",
-        "name": "Secciones completas",
+        "name": "Secciones Completas",
         "type": "check-sections-rate",
         "fields": [
             "parties",
@@ -20,9 +20,34 @@
         ]
     },
     {
+        "id": "trans-ccm",
+        "category": "Transparencia",
+        "name": "Campos Completos Mexicanos",
+        "type": "check-fields-rate",
+        "fields": [
+            "awards.date", "awards.value.currency", "awards.value.amount", "awards.suppliers.id", "awards.suppliers.name",
+            "buyer.id", "buyer.name", "buyer.consolidatedProcessMxCnet",
+            "contracts.amendments.id", "contracts.date", "contracts.id", "contracts.awardID", "contracts.filedMxCnet", "contracts.framework", "contracts.hasFramework",
+                "contracts.period.startDate", "contracts.period.endDate", "contracts.period.multiyearContractMxCnet",
+                "contracts.tenderPeriod.endDate", "contracts.tenderPeriod.startDate", "contracts.status", "contracts.statusMxCnet", "contracts.title",
+                "contracts.value.currency", "contracts.value.amount",
+            "id", "ocid",
+            "parties.address.countryName", "parties.address.region", "parties.contactPoint.name", "parties.govLevel", "parties.id", "parties.identifier.id",
+                "parties.identifier.legalName", "parties.memberOf", "parties.memberOf.id",
+                "parties.memberOf.name", "parties.name", "parties.role", "parties.details.scaleReportedByBuyerMxCnet", "parties.details.scaleReportedBySupplierMxCnet",
+            "planning.budget.budgetBreakdown.amount.amount", "planning.budget.budgetBreakdown.amount.currency", "planning.budget.budgetBreakdown.budgetClassifications.origin",
+                "planning.budget.project", "planning.budget.projectID",
+            "source", "tag",
+            "tender.additionalProcurementCategories", "tender.id", "tender.mainProcurementCategory", "tender.procurementMethod", "tender.procurementMethodDetails",
+                "tender.procurementMethodCharacterMxCnet",
+                "tender.procurementMethodMxCnet", "tender.procurementMethodDetailsTemplateMxCnet", "tender.procuringEntity", "tender.procuringEntity.id",
+                "tender.procuringEntity.name", "tender.submissionMethod", "tender.title", "tender.contractPeriod.multiyearContractMxCnet"
+        ]
+    },
+    {
         "id": "trans-cc",
         "category": "Transparencia",
-        "name": "Campos completos",
+        "name": "Campos Completos",
         "type": "check-fields-rate",
         "fields": [
             "ocid", "id", "date", "tag", "initiationType",
@@ -90,7 +115,7 @@
     {
         "id": "temp-cft",
         "category": "Temporalidad",
-        "name": "Campos fundamentales para la temporalidad",
+        "name": "Campos Fundamentales para la Temporalidad",
         "type": "check-fields-bool",
         "fields": [
             "awards.date",
@@ -103,7 +128,7 @@
     {
         "id": "temp-tipo",
         "category": "Temporalidad",
-        "name": "Tiempo insuficiente de preparación de oferta",
+        "name": "Tiempo Insuficiente de Preparación de Oferta",
         "type": "date-difference-bool",
         "difference":{
             "minimum": [
@@ -136,7 +161,7 @@
     {
         "id": "temp-dl",
         "category": "Temporalidad",
-        "name": "Duraciones largas",
+        "name": "Duraciones Largas",
         "type": "date-difference-bool",
         "difference":{
             "maximum": 1000
@@ -149,7 +174,7 @@
     {
         "id": "temp-fs",
         "category": "Temporalidad",
-        "name": "Fechas sospechosas",
+        "name": "Fechas Sospechosas",
         "type": "check-dates-bool",
         "fields": [
             "awards.date",
@@ -203,7 +228,7 @@
     {
         "id": "comp-pf",
         "category": "Competitividad",
-        "name": "Paraísos fiscales",
+        "name": "Paraísos Fiscales",
         "type": "check-field-value-bool",
         "fields": ["parties.address.countryName"],
         "values": [
@@ -271,7 +296,7 @@
     {
         "id": "traz-ei",
         "category": "Trazabilidad",
-        "name": "Escala inconsistente",
+        "name": "Escala Inconsistente",
         "type": "field-equality-bool",
         "fields": [
             "parties.details.scaleReportedByBuyerMxCnet", "parties.details.scaleReportedBySupplierMxCnet"
@@ -280,7 +305,7 @@
     {
         "id": "traz-cft",
         "category": "Trazabilidad",
-        "name": "campos Fundamentales para la Trazabilidad",
+        "name": "Campos Fundamentales para la Trazabilidad",
         "type": "check-fields-bool",
         "fields": [
             "planning.budget",
@@ -301,14 +326,14 @@
     {
         "id": "traz-mc",
         "category": "Trazabilidad",
-        "name": "Modificaciones al contrato",
+        "name": "Modificaciones al Contrato",
         "fields": ["contracts.amendments"],
         "type": "check-fields-inverse"
     },
     {
         "id": "traz-ip",
         "category": "Trazabilidad",
-        "name": "Información de las partes",
+        "name": "Información de las Partes",
         "fields": [{
             "value":"parties.contactPoint.name",
             "conditions": {
@@ -325,7 +350,7 @@
     {
         "id": "traz-pf",
         "category": "Trazabilidad",
-        "name": "Proveedor fantasma",
+        "name": "Proveedor Fantasma",
         "fields": [{
             "value": "parties.identifier.id",
             "conditions": {
@@ -337,7 +362,7 @@
     {
         "id": "traz-ir",
         "category": "Trazabilidad",
-        "name": "Importe redondeado",
+        "name": "Importe Redondeado",
         "fields": [
             {
                 "value":"contracts.value.amount",
@@ -352,14 +377,14 @@
     {
         "id": "traz-ct",
         "category": "Trazabilidad",
-        "name": "Comprensión del título",
+        "name": "Comprensión del Título",
         "fields": ["contracts.title"],
         "type": "comprensibility"
     },
     {
         "id": "traz-fro",
         "category": "Trazabilidad",
-        "name": "Falta de referencia oficial",
+        "name": "Falta de Referencia Oficial",
         "fields": "source.url",
         "type": "check-url-bool"
     }
