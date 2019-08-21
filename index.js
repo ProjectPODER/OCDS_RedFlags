@@ -85,14 +85,8 @@ const db = monk(url)
         let evaluations = null;
 
         // Check if we are working with records or releases
-        if( record.hasOwnProperty('records') ) {
-            if( record.records.length > 0 ) {
-                if( record.records[0].hasOwnProperty('compiledRelease') )
-                    contract = record.records[0].compiledRelease;
-            }
-            else if(record.records.hasOwnProperty('compiledRelease'))
-                contract = record.records.compiledRelease;
-        }
+        if( record.hasOwnProperty('compiledRelease') )
+            contract = record.compiledRelease;
         else contract = record;
 console.log(seenRecords, contract.ocid);
         if( isValidContract(contract) ) {
@@ -196,7 +190,8 @@ console.log(seenRecords, contract.ocid);
                 party_flags.map( (party) => {
                     partyScores[party.party.id] = {
                         party: party.party,
-                        contract_score: party.contract_score,
+                        contract_categories: party.contract_score,
+                        contract_rules: party.contract_rules,
                         years: party.years
                     };
                 } );
