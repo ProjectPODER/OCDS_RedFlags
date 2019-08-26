@@ -53,7 +53,7 @@ function getFlagScore(contract, flag) {
             return checkUrlFieldFlag(contract, flag.fields);
             break;
         case 'comprensibility':
-            return checkComprensibilityFlag();
+            return checkComprensibilityFlag(contract, flag.fields);
             break;
         case 'date-difference-bool':
             return dateDifferenceFlag(contract, flag.fields, flag.difference);
@@ -76,8 +76,8 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
     Object.assign(contratoFlags, { ocid: contract.ocid });
     Object.assign(contratoFlags, { value: contract.contracts[0].value });
 
-    if( contract.contracts[0].hasOwnProperty('dateSigned') ) {
-        Object.assign(contratoFlags, { date_signed: contract.contracts[0].dateSigned });
+    if( contract.contracts[0].hasOwnProperty('period') ) {
+        Object.assign(contratoFlags, { date_signed: contract.contracts[0].period.startDate });
     }
     if( contract.hasOwnProperty('source') ) {
         Object.assign(contratoFlags, { source: contract.source });
@@ -88,10 +88,34 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
     contract.parties.map( (party) => {
         var role = party.hasOwnProperty('role')? party.role : party.roles;
 
-        var partyObj = {
-            id: party.id,
-            name: party.name,
-            entity: role
+        if(role == 'funder') {
+            if(party.id.indexOf(';') > -1) {
+                var ids = party.id.split(';');
+                var names = party.name.split(';');
+
+                ids.map( (id, index) => {
+                    var funderObj = {
+                        id: id,
+                        name: names[index],
+                        entity: role
+                    }
+                    contratoParties.push(funderObj);
+                } );
+            }
+            else {
+                var partyObj = {
+                    id: party.id,
+                    name: party.name,
+                    entity: role
+                }
+            }
+        }
+        else {
+            var partyObj = {
+                id: party.id,
+                name: party.name,
+                entity: role
+            }
         }
 
         // Del party con rol de buyer (la UC) sacamos la dependencia (el parent) y el estado o municipio
@@ -136,8 +160,9 @@ function evaluateFlags(contract, flags, flagCollectionObj) {
                     break;
             }
         }
-
-        contratoParties.push(partyObj);
+        if(partyObj) {
+            contratoParties.push(partyObj);
+        }
     } );
 
     // Iterar sobre las reglas

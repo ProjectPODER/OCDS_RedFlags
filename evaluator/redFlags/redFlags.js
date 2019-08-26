@@ -146,12 +146,12 @@ function evaluateConditions(contract, conditions, fieldName) {
 function evaluateDateCondition(contract, conditionType, condition, daysDifference) {
     var conditionMatches = false;
 
-    Object.keys(condition).map( (field) => {
+    Object.keys(condition.conditions).map( (field) => {
         var fieldValue = fieldPathExists(field, contract);
         if(fieldValue.length > 0) {
             fieldValue.map( (value) => {
-                if(isString(condition[field])) {
-                    if(condition[field] == value) {
+                if(isString(condition.conditions[field])) {
+                    if(condition.conditions[field] == value) {
                         switch(conditionType) {
                             case 'maximum':
                                 if(daysDifference < condition.value) conditionMatches = true;
@@ -163,7 +163,7 @@ function evaluateDateCondition(contract, conditionType, condition, daysDifferenc
                     }
                 }
                 else { // Si tiene un OR
-                    condition[field].or.map( (orValue) => {
+                    condition.conditions[field].or.map( (orValue) => {
                         if(orValue == value) {
                             switch(conditionType) {
                                 case 'maximum':
@@ -198,8 +198,18 @@ function checkAllFieldsFlag() {
 // Descripción: Aplica esta función: http://gitlab.rindecuentas.org/ivan/luigi_pipelines/blob/master/RedFlagsDocumentations.py#L263
 // Parámetros:
 //      fields: Array de campos a verificar.
-function checkComprensibilityFlag() {
-    return 0.5;
+function checkComprensibilityFlag(contract, fields) {
+    var gibberish = false;
+    fields.map( (field) => {
+        var tempObj = contract;
+        var values = fieldPathExists(field, tempObj);
+
+        if(values.length > 0) {
+            // Chequear para vada valor
+        }
+    } );
+
+    return gibberish ? 0 : 1;
 }
 
 // Tipo: check-dates-bool
