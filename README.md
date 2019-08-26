@@ -1,7 +1,7 @@
 # ocds-redflags
 Evaluador de documentos OCDS con banderas configurables.
 
-Esta es la version que se utilizó para el lanzamiento de https://www.todosloscontratos.mx (commit b71cf9d74cf265d01c041d6208fb24c426e430cd)
+Esta es la version que se utilizó para el lanzamiento de https://www.todosloscontratos.mx [(commit 5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)](https://github.com/ProjectPODER/OCDS_RedFlags/commit/5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)
 
 La documentación de banderas nodo aún no está completa. Si fuera de interés, se hará una nueva versión con mejor documentación y comentarios.
 
@@ -10,7 +10,7 @@ La documentación de banderas nodo aún no está completa. Si fuera de interés,
     npm install
 ##### Ejecución
 
-    node index.js -d [BASE_DE_DATOS] -c [COLECCION_OCDS] -y [AÑO] -f [FLAG_FILE]
+    node index.js -d [BASE_DE_DATOS] -c [COLECCION_OCDS] -f [FLAG_FILE]
 
 ## Configuración de banderas
 Cada regla lleva una categoría, un nombre, un tipo y parámetros del tipo.
