@@ -1,22 +1,27 @@
 #!/usr/bin/env node
 const monk = require('monk');
 const commandLineArgs = require('command-line-args');
-const evaluateFlags = require('./evaluator/evaluate');
+const { evaluateFlags, evaluateNodeFlags } = require('./evaluator/evaluate');
 const { parseFlags, getCriteriaObject } = require('./evaluator/parser');
 const {
     createFlagCollectionObject,
     updateFlagCollection,
     getPartyCriteriaSummary,
+    getPartyNodeSummary,
     getContractCriteriaSummary,
-    sendPartyCollectionToDB,
-    sendContractCollectionToDB
+    sendCollectionToDB
 } = require('./evaluator/collection');
+const { createOrgTree, updateOrgTree } = require('./evaluator/tree');
+
+console.time('duration');
 
 const optionDefinitions = [
     { name: 'database', alias: 'd', type: String },
     { name: 'collection', alias: 'c', type: String },
-    { name: 'flags', alias: 'f', type: String },
-    { name: 'year', alias: 'y', type: String }
+    { name: 'flags', alias: 'f', type: String }, // Name of file containing flag definitions (should always be placed in root folder)
+    { name: 'test', alias: 't', type: String }, // Test with one ocid
+    { name: 'limit', alias: 'l', type: Number }, // Test with n=limit records
+    { name: 'skip', alias: 's', type: Number } // Test with n=limit records
 ];
 const args = commandLineArgs(optionDefinitions);
 
@@ -24,158 +29,223 @@ if(!args.database || !args.collection || !args.flags) {
     console.log('ERROR: missing parameters.');
     process.exit(1);
 }
-if(!args.year) {
-    console.log('ERROR: you must specify a year.');
-    process.exit(1);
+
+let seenRecords = 0;            // Counter for records read from DB
+let seenContracts = 0;          // Counter for contracts extracted from records
+let sentContracts = 0;          // Counter for contracts sent to DB
+let contractEvaluations = [];
+let contractPromises = [];
+let partyPromises = [];
+const chunkSize = 10000;                // How many documents will be sent to DB at once
+const flags = parseFlags(args.flags);   // TODO: Add a syntax check to the flags definition. Should output warnings for rules with errors.
+const flagCollectionObj = createFlagCollectionObject(flags);
+const partyFlagCollection = [];
+const flagCriteriaObj = getCriteriaObject(flags);
+
+let partyScores = {};
+let orgTree = createOrgTree();
+
+let query = {};
+if(args.test) { // Use the -t flag to test a single record by ocid
+    query = { 'records.0.ocid': args.test }
 }
 
-let seenContracts = 0;
-const flags = parseFlags(args.flags);
-const flagCollectionObj = createFlagCollectionObject(flags);
-const contractFlagCollection = [];
-const partyFlagCollection = [];
-const partyFlagIndex = [];
-
-// const query = {'contracts.period.startDate': {$gte: new Date(args.year + '-01-01T00:00:00.000Z'), $lte: new Date(args.year + '-12-31T23:59:59.000Z')}}
-const query = {};
-
-// Connection URL
 const url = 'mongodb://localhost:27017/' + args.database;
 const db = monk(url)
-            .then( (db) => {
-                console.log('Connected to ' + args.database + '...');
-                console.time('duration');
+.then( (db) => {
+    console.log('Connected to ' + args.database + '...');
 
-                const contracts = db.get(args.collection, { castIds: false });
+    const records = db.get(args.collection, { castIds: false });    // Collection to read records from
+    const c_flags = db.get('contract_flags', { castIds: false });   // Collection to store contract_flags in
+    const p_flags = db.get('party_flags', { castIds: false });      // Collection to store party_flags in
 
-                console.log('Streaming contracts...');
+    // Data is not accumulative, clear the collections first to avoid duplicate insertions and errors
+    c_flags.remove({});
+    p_flags.remove({});
 
-                // PRIMERA PASADA
-                // contracts.find({}, { limit: 100000, sort: { 'contracts.period.startDate': -1 } })
-                contracts.find( query )
-                    .each( (contract, {close, pause, resume}) => {
-                        seenContracts++;
-                        // console.log(JSON.stringify(contract, null, 4));
-                        if( isValidContract(contract) ) {
-                            // Realizar la evaluación del contrato
-                            const evaluation = evaluateFlags(contract, flags, flagCollectionObj);
-                            contractFlagCollection.push(evaluation.contratoFlags);
+    console.log('Streaming records...');
 
-                            // Asignar valores del contractScore a los parties
-                            evaluation.contratoFlags.parties.map( (party) => {
-                                // Actualizar array global de objetos para party_flags
-                                updateFlagCollection(party, partyFlagCollection, partyFlagIndex, evaluation.year, evaluation.contratoFlags.flags);
-                            } );
-                        }
-                    } )
-                    .then( () => {
-                        if(seenContracts == 0) {
-                            console.log('No contracts seen.');
-                            process.exit(0);
-                        }
-                        // -----------------------------------------------------------------------------------------
-                        // -----------------------------------------------------------------------------------------
+    let globalCount = 0;
+    let skip = 0;
+    if(args.test) // Test one record with the -t flag
+        globalCount = 1;
+    else {
+        if(args.limit) // Uses the -l flag to test only the first n=args.limit records
+            globalCount = args.limit;
+        else // Normal operation
+            records.count( query , (error, count) => { globalCount = count } );
+        if(args.skip)
+            skip = args.skip;
+    }
 
-                        // SEGUNDA PASADA VA AQUI
+    records.find( query, { limit: globalCount, skip: skip } )
+    .each( (record, {close, pause, resume}) => { // Process each record found with query
+        seenRecords++;
+        let contract = null;
+        let evaluations = null;
 
-                        // -----------------------------------------------------------------------------------------
-                        // -----------------------------------------------------------------------------------------
+        // Check if we are working with records or releases
+        if( record.hasOwnProperty('compiledRelease') )
+            contract = record.compiledRelease;
+        else contract = record;
+console.log(seenRecords, contract.ocid);
+        if( isValidContract(contract) ) {
+            evaluations = evaluateFlags(contract, flags, flagCollectionObj); // Perform evaluation of the document
+            seenContracts += evaluations.length;
+            evaluations.map( (evaluation) => {
+                evaluation.contratoFlags.parties.map( (party) => { // Assign contractScore values to all the parties involved
+                    updateFlagCollection(party, partyFlagCollection, evaluation.year, evaluation.contratoFlags.flags);
+                } );
 
-                        // Insertar PARTY_FLAGS a la DB:
-                        // Dividir el array en chunks de 1000, para cada chunk se convierte la data en el objeto para
-                        // la DB, luego se envía el listado de objetos para insert/update en la DB
-                        const chunkSize = 1000;
-                        var numChunks = 0;
-                        var upsertedChunks = 0;
-                        var totalModified = 0;
-                        var totalUpserted = 0;
+                // AQUI BANDERAS NODO Y CONFIABILIDAD
+                updateOrgTree(orgTree.roots, evaluation.contract, evaluation.contratoFlags.parties);
+            } );
+            contractEvaluations = contractEvaluations.concat(getContractCriteriaSummary(evaluations, flagCriteriaObj));
+        }
 
-                        var arrayLength = partyFlagCollection.length;
-                        var expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
-                        var criteriaObj = getCriteriaObject(flags);
-                        var dbCollection = db.get('party_flags', { castIds: false });
+        // Cleanup...
+        record = null;
+        contract = null;
+        evaluations = null;
 
-                        for(i = 0; i < arrayLength; i += chunkSize) {
-                            numChunks++;
-                            console.log('PARTIES Chunk ' + numChunks);
+        // If we are testing, stop here and output test results
+        if(args.test) {
+            console.log('Test results:');
+            console.log('----------------------------------------------------');
+            console.log('Contract Flags');
+            console.log( JSON.stringify(contractEvaluations, null, 4) );
+            console.log('----------------------------------------------------');
+            console.log('Party Flags');
+            console.log( partyFlagCollection );
+            console.log('----------------------------------------------------');
+            console.log('Org Tree:');
+            console.log( JSON.stringify(orgTree, null, 4) );
+            console.timeEnd('duration');
+            // process.exit(1);
+        }
 
-                            var partyChunk = partyFlagCollection.slice(i, i + chunkSize);
-                            var party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
+        // Have we collected 10 thousand documents yet? Has the last record been processed?
+        if(seenContracts - sentContracts >= chunkSize || seenRecords == globalCount) {
+            pause(); // Stop reading contracts for the time being
 
-                            // Send chunk to DB...
-                            var upsertPromises = sendPartyCollectionToDB(party_flags, dbCollection);
-                            // console.log(JSON.stringify(party_flags, null, 4));
-                            Promise.all([upsertPromises]).then((results) => {
-                                upsertedChunks++;
-                                console.log('---------------------------------------------------------------------------');
-                                console.log('RESULT for chunk ' + upsertedChunks);
-                                console.log('MODIFIED:', results[0].modifiedCount, 'UPSERTED:', results[0].upsertedCount);
+            // Insert CONTRACT_FLAGS to DB:
+            // Split into n=chunkSize chunks
+            // Convert flagCollection structure to DB structure
+            // Send chunks to DB for insertion
+            contractPromises.push(sendCollectionToDB(contractEvaluations, c_flags));
+            sentContracts = seenContracts;
+            contractEvaluations = [];
 
-                                totalModified += results[0].modifiedCount;
-                                totalUpserted += results[0].upsertedCount;
+            resume(); // Continue reading contracts
+        }
 
-                                if(upsertedChunks == expectedChunks) {
-                                    console.log('---------------------------------------------------------------------------');
-                                    console.log('PARTY_FLAGS: DONE!');
-                                    console.log('MODIFIED:', totalModified, 'UPSERTED:', totalUpserted);
-                                    console.log('---------------------------------------------------------------------------');
+        // We have reached the end of the collection, send the last chunk to DB
+        if(globalCount == seenRecords) {
+            console.log('End streaming. Waiting for inserts...');
+            pause(); // Pause until promises are resolved
 
-                                    // Insertar CONTRACT_FLAGS a la DB:
-                                    // Dividir el array en chunks de 1000, para cada chunk se convierte la data en el objeto para
-                                    // la DB, luego se envía el listado de objetos para insert/update en la DB
-                                    numChunks = 0;
-                                    upsertedChunks = 0;
-                                    totalModified = 0;
-                                    totalUpserted = 0;
+            // Wait for all promises to be resolved, which means all contract_flags have been sent to DB
+            Promise.all(contractPromises).then( (results) => {
+                console.log('Insertion complete.');
+                console.log('Seen contracts:', seenContracts);
 
-                                    arrayLength = contractFlagCollection.length;
-                                    expectedChunks = Math.floor(arrayLength / chunkSize) + 1;
-                                    criteriaObj = getCriteriaObject(flags);
-                                    dbCollection = db.get('contract_flags', { castIds: false });
+                let inserted = 0;
+                results.map( (result) => { // Process result for each chunk sent
+                    let json = result.toJSON();
+                    inserted += json.nInserted;
+                    // if(json.writeErrors) {
+                    //     console.log('Errors:');
+                    //     json.writeErrors.map( (error) => { console.log(error.errmsg) } );
+                    // }
+                } )
 
-                                    for(i = 0; i < arrayLength; i += chunkSize) {
-                                        numChunks++;
-                                        console.log('CONTRACTS Chunk ' + numChunks);
+                console.log('Inserted', inserted);
 
-                                        var contractChunk = contractFlagCollection.slice(i, i + chunkSize);
-                                        var contract_flags = getContractCriteriaSummary(contractChunk, criteriaObj);
+                // Cleanup...
+                contractPromises = null;
+                results = null;
 
-                                        // Send chunk to DB...
-                                        var upsertPromises = sendContractCollectionToDB(contract_flags, dbCollection);
-                                        // console.log(JSON.stringify(party_flags, null, 4));
-                                        Promise.all([upsertPromises]).then((results) => {
-                                            upsertedChunks++;
-
-                                            console.log('---------------------------------------------------------------------------');
-                                            console.log('RESULT for chunk ' + upsertedChunks);
-                                            console.log('INSERTED:', results[0].nInserted);
-
-                                            totalUpserted += results[0].nInserted;
-
-                                            if(upsertedChunks == expectedChunks) {
-                                                console.log('---------------------------------------------------------------------------');
-                                                console.log('CONTRACT_FLAGS: DONE!');
-                                                console.log('INSERTED:', totalUpserted);
-                                                console.log('---------------------------------------------------------------------------');
-
-                                                console.log(contractFlagCollection.length + ' contratos procesados.');
-                                                console.log(partyFlagCollection.length + ' entidades procesadas.');
-                                                console.timeEnd('duration');
-
-                                                // ------------- THE END -------------
-                                                process.exit(0);
-                                                // ------------- THE END -------------
-                                            }
-                                        }).catch(e => { console.log('PROMISE ERROR', e) });
-                                    }
-                                }
-                            }).catch(e => { console.log('PROMISE ERROR', e) });
-                        }
-
-                        console.log('End streaming.');
-                    } );
+                resume(); // Promises complete, continue with the next step
             } )
-            .catch( (err) => { console.log('Error connecting to ' + args.database, err) } );
+            .catch( (err) => { console.log('ERROR', err) } );
+        }
+    } )
+    .then( () => { // All contracts have been evaluated and processed, proceed to process all parties
+        console.log('Processing parties.');
+        const arrayLength = Object.keys(partyFlagCollection).length; // How many parties have we seen?
+        let criteriaObj = getCriteriaObject(flags);
+
+        // Calculate PARTY_FLAGS structure
+        // Split into n=chunkSize chunks
+        // Convert flagCollection structure to DB structure
+        let parties = 0;
+        let partyChunk = [];
+        for(var partyID in partyFlagCollection) {
+            parties++;
+            partyChunk.push(partyFlagCollection[partyID]);
+            delete partyFlagCollection[partyID];
+
+            if(parties % chunkSize == 0 || parties >= arrayLength) {
+                let party_flags = getPartyCriteriaSummary(partyChunk, criteriaObj);
+                party_flags.map( (party) => {
+                    partyScores[party.party.id] = {
+                        party: party.party,
+                        contract_categories: party.contract_score,
+                        contract_rules: party.contract_rules,
+                        years: party.years
+                    };
+                } );
+                partyChunk = [];
+            }
+        }
+
+        console.log('Evaluating node flags.');
+        let nodeScores = evaluateNodeFlags(orgTree.roots, partyScores);
+        // console.log( JSON.stringify(nodeScores, null, 4) );
+        console.log('Node flags done.');
+
+        // Insert PARTY_FLAGS to DB:
+        // Split into n=chunkSize chunks
+        // Send chunks to DB for insertion
+        parties = 0;
+        partyChunk = [];
+        for(var partyID in partyScores) {
+            parties++;
+            partyChunk.push(partyScores[partyID]);
+
+            if(parties % chunkSize == 0 || parties >= arrayLength) {
+                let party_flags = getPartyNodeSummary(partyChunk, nodeScores);
+                partyPromises.push(sendCollectionToDB(party_flags, p_flags));
+                partyChunk = [];
+            }
+        }
+        console.log('End processing. Waiting for inserts...');
+        // Wait for promises to be resolved, which means all parties have been sent to DB
+        return Promise.all(partyPromises).then( (results) => {
+            console.log('Insertion complete.');
+            console.log('Seen parties:', parties);
+
+            let inserted = 0;
+            results.map( (result) => { // Process result for each chunk sent
+                let json = result.toJSON();
+                inserted += json.nInserted;
+            } )
+
+            console.log('Inserted', inserted);
+
+            // Cleanup...
+            partyPromises = null;
+            results = null;
+        } )
+        .catch( (err) => { console.log('ERROR', err) } );
+    } )
+    .then( () => {
+        console.timeEnd('duration');
+        process.exit(0); // All done!
+    } ).
+    catch( (err) => { console.log('Error:', err); process.exit(1); } );
+} )
+.catch( (err) => { console.log('Error connecting to ' + args.database, err); process.exit(1); } );
 
 function isValidContract(contract) {
     return contract.hasOwnProperty('parties') && contract.hasOwnProperty('contracts');

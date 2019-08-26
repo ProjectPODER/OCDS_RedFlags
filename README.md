@@ -1,6 +1,10 @@
 # ocds-redflags
 Evaluador de documentos OCDS con banderas configurables.
 
+Esta es la version que se utilizó para el lanzamiento de https://www.todosloscontratos.mx (commit b71cf9d74cf265d01c041d6208fb24c426e430cd)
+
+La documentación de banderas nodo aún no está completa. Si fuera de interés, se hará una nueva versión con mejor documentación y comentarios.
+
 #### Modo de uso
 ##### Instalación
     npm install

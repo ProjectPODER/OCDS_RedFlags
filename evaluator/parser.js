@@ -1,9 +1,4 @@
 const fs = require('fs');
-const slug = require('slug');
-
-function getIDFromString(str) {
-    return slug(str, { lower: true });
-}
 
 function getRuleField(rule, field) {
     if(rule.hasOwnProperty(field)) {
@@ -14,26 +9,33 @@ function getRuleField(rule, field) {
     }
 }
 
+function getIDFromString(string) {
+    if(string.indexOf('-') >= 0)
+        return string.split('-')[0];
+    else
+        return '';
+}
+
 function parseFlags(file) {
-    // Leer archivo
+    // Read file
     let rawdata = fs.readFileSync(file);
 
-    // Parsear archivo
+    // Parse file
     let rules = JSON.parse(rawdata);
 
-    // Construir rulesObj
+    // Build rulesObj
     let rulesArr = [];
     rules.map( (rule) => {
         var ruleObj = {
-            id: getIDFromString(rule.name),
+            id: rule.id,
             name: rule.name,
             category: rule.category,
-            categoryID: getIDFromString(rule.category),
+            categoryID: getIDFromString(rule.id),
             flagType: rule.type,
-            fields: getRuleField(rule, 'fields'), // VALIDAR
-            values: getRuleField(rule, 'values'), // VALIDAR
-            dates: getRuleField(rule, 'dates'), // VALIDAR
-            difference: getRuleField(rule, 'difference'), // VALIDAR
+            fields: getRuleField(rule, 'fields'),           // VALIDAR
+            values: getRuleField(rule, 'values'),           // VALIDAR
+            dates: getRuleField(rule, 'dates'),             // VALIDAR
+            difference: getRuleField(rule, 'difference'),   // VALIDAR
         };
 
         rulesArr.push(ruleObj);
