@@ -1,5 +1,5 @@
 # ocds-redflags
-Evaluador de documentos OCDS con banderas configurables.
+Evaluador de documentos OCDS con banderas configurables, explicación narrativa de cada una de ellas en la [wiki de proyecto](https://github.com/ProjectPODER/OCDS_RedFlags/wiki#metodolog%C3%ADa-de-evaluaci%C3%B3n).
 
 Esta es la version que se utilizó para el lanzamiento de https://www.todosloscontratos.mx [(commit 5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)](https://github.com/ProjectPODER/OCDS_RedFlags/commit/5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)
 
