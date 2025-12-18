@@ -1,4 +1,11 @@
 # ocds-redflags
+
+⚠️ **Este proyecto está deprecado.** 
+
+Para una versión actualizada y mantenida con la misma funcionalidad, consulta [flagfetti-ecuador-ocds](https://github.com/Abrimos-info/flagfetti-ecuador-ocds).
+
+---
+
 Evaluador de documentos OCDS con banderas configurables, explicación narrativa de cada una de ellas en la [wiki de proyecto](https://github.com/ProjectPODER/OCDS_RedFlags/wiki#metodolog%C3%ADa-de-evaluaci%C3%B3n).
 
 Esta es la version que se utilizó para el lanzamiento de https://www.todosloscontratos.mx [(commit 5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)](https://github.com/ProjectPODER/OCDS_RedFlags/commit/5e2fb7bbc29814d5f2ddb935ddf0138cc92ae2ce)
